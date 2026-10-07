@@ -1,0 +1,18 @@
+<resources>
+    <style name="Base.Theme.WindRoute" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <style name="Theme.WindRoute" parent="Base.Theme.WindRoute" />
+
+    <style name="Widget.WindRoute.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">6dp</item>
+        <item name="shapeAppearance">?attr/shapeAppearanceLargeComponent</item>
+    </style>
+
+    <style name="Widget.WindRoute.Legend" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:drawablePadding">6dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
+    </style>
+</resources>

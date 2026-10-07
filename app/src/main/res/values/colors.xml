@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The three wind colours are chosen to stay distinguishable with the common
+         forms of colour blindness: they differ in lightness as well as hue, so
+         red against green is never the only cue. -->
+    <color name="wind_headwind">#E4572E</color>
+    <color name="wind_crosswind">#F2B134</color>
+    <color name="wind_tailwind">#17A398</color>
+    <color name="wind_calm">#9AA5B1</color>
+    <!-- Drawn under the route so it stays readable on any map background. -->
+    <color name="route_casing">#FFFFFFFF</color>
+</resources>

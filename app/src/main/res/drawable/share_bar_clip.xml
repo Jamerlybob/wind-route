@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gives the share bar rounded ends: the layout clips its children to this outline. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="5dp" />
+    <solid android:color="@color/wind_calm" />
+</shape>

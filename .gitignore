@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+.idea/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+.DS_Store
+
+# Holds the Google Maps key and the local SDK path. Never commit it.
+local.properties
+
+# Signing keys
+*.jks
+*.keystore

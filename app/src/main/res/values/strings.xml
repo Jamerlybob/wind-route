@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name">WindRoute</string>
+    <string name="hint_origin">From</string>
+    <string name="hint_destination">To</string>
+    <string name="button_go">Show wind</string>
+    <string name="depart_now">Now</string>
+    <string name="depart_1h">In 1 h</string>
+    <string name="depart_3h">In 3 h</string>
+
+    <string name="error_need_both">Enter where you are starting and where you are going.</string>
+    <string name="error_no_key">No Google Maps key in this build. Add MAPS_API_KEY to local.properties and rebuild.</string>
+
+    <string name="headline_headwind">Mostly into the wind</string>
+    <string name="headline_tailwind">Wind at your back</string>
+    <string name="headline_crosswind">Mostly crosswind</string>
+    <string name="headline_calm">Hardly any wind</string>
+    <string name="headline_mixed">A bit of everything</string>
+
+    <!-- distance, ride time, average along-road wind, strongest gust -->
+    <string name="details">%1$s · %2$s · %3$s · gusts to %4$d km/h</string>
+    <string name="net_headwind">%1$d km/h against you</string>
+    <string name="net_tailwind">%1$d km/h helping</string>
+    <string name="net_neutral">no net push</string>
+
+    <string name="legend_headwind">Head %1$d%%</string>
+    <string name="legend_crosswind">Cross %1$d%%</string>
+    <string name="legend_tailwind">Tail %1$d%%</string>
+    <string name="legend_calm">Calm %1$d%%</string>
+
+    <string name="marker_start">Start</string>
+    <string name="marker_end">Finish</string>
+    <string name="duration_h_min">%1$d h %2$d min</string>
+    <string name="duration_min">%1$d min</string>
+    <string name="distance_km">%1$.1f km</string>
+</resources>
