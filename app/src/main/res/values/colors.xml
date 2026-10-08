@@ -9,4 +9,22 @@
     <color name="wind_calm">#9AA5B1</color>
     <!-- Drawn under the route so it stays readable on any map background. -->
     <color name="route_casing">#FFFFFFFF</color>
+
+    <!-- The app's own colours. Blue was picked because it is the one hue the
+         wind colours above do not use, so a button can never be mistaken for a
+         verdict about the wind. The same names are defined again, lighter or
+         darker, in values-night/colors.xml; Android picks the file to match
+         the phone's light or dark setting. -->
+    <color name="brand_primary">#1D5FA8</color>
+    <color name="brand_on_primary">#FFFFFF</color>
+    <color name="brand_primary_container">#D6E4F7</color>
+    <color name="brand_on_primary_container">#0B2C52</color>
+    <color name="brand_secondary_container">#DCE5F0</color>
+    <color name="brand_on_secondary_container">#1B2A3A</color>
+    <color name="brand_surface">#F6F8FB</color>
+    <color name="brand_card">#FFFFFF</color>
+    <color name="brand_on_surface">#171C22</color>
+    <color name="brand_on_surface_variant">#47515C</color>
+    <color name="brand_outline">#77828E</color>
+    <color name="brand_outline_variant">#C4CCD5</color>
 </resources>

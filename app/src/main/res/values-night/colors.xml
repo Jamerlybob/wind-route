@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-mode versions of the app colours in values/colors.xml. Only colours
+     that change are listed; the wind colours are bright enough to keep. The
+     greys are the same blue-tinted family as res/raw/map_style_night.json, so
+     the cards look like they belong on the dark map. -->
+<resources>
+    <color name="brand_primary">#9CC6F5</color>
+    <color name="brand_on_primary">#06315C</color>
+    <color name="brand_primary_container">#1F4A78</color>
+    <color name="brand_on_primary_container">#D6E4F7</color>
+    <color name="brand_secondary_container">#2F3B49</color>
+    <color name="brand_on_secondary_container">#D9E3EE</color>
+    <color name="brand_surface">#12161B</color>
+    <color name="brand_card">#1A2028</color>
+    <color name="brand_on_surface">#E3E8EE</color>
+    <color name="brand_on_surface_variant">#B4BEC9</color>
+    <color name="brand_outline">#8591A0</color>
+    <color name="brand_outline_variant">#3A4552</color>
+</resources>

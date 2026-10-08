@@ -135,7 +135,7 @@
                 android:id="@+id/headline"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
 
             <TextView
                 android:id="@+id/details"
