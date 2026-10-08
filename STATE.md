@@ -34,14 +34,30 @@ two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-One Codex run each at medium effort, reviewed and run on the emulator after:
+Codex hit the usage limit again at 08:03 on 2026-10-09, six minutes into
+`docs/specs/M5-polish.md` and `docs/specs/M4-riding.md`. It left uncommitted,
+never-compiled work in the tree: `RideService`, `nav/CueBuilder`,
+`nav/CuePlanner`, `nav/CuePlanFactory`, `route/RouteStep`, and edits to about
+17 files. Do not commit that as it stands.
 
-1. `docs/specs/M5-polish.md` (places lookup was not seen working)
-2. `docs/specs/M4-riding.md` (audio and real GPS need James's phone)
+To carry on (the limit resets at 12:07 on 2026-10-09):
+
+    codex exec resume 01a11cdf-ba06-74b1-b283-a8181b280ea2 -m gpt-5.6-sol       -c model_reasoning_effort=low "carry on and finish both specs"
+
+Then Claude builds, reviews, runs it on the emulator (start it first; it was
+shut down to save memory), commits and sends James the APK. Riding mode's
+audio and real GPS need James's phone.
+
+Codex model and effort: James's `~/.codex/config.toml` default is
+`gpt-5.6-sol` at low effort. Claude ran it at high (three agents at once,
+allowance gone in two hours) and then medium (one agent, about four hours).
+Use low from here unless a task clearly needs more, one agent at a time, and
+consider `gpt-5.6-terra` for polish and comment passes. `codex debug models`
+lists what the account offers.
 
 The laptop ran out of memory on 2026-10-09 with the emulator, Codex and
-Gradle all running; Claude Code killed the Codex run. `codex exec resume
-<session id>` picked it up again. Run one Gradle build at a time.
+Gradle all running. Run one Gradle build at a time and close the emulator
+when it is not in use.
 
 ## Known gaps
 
