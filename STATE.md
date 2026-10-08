@@ -67,7 +67,7 @@ Decided 2026-10-08: stay on Google. James is fine with a card on the account
 and was given the console steps the same day: upgrade the billing account,
 cap the Routes API daily quota at about 30 requests (under 1,000 a month, so
 it stays inside the free allowance on either SKU), add a budget alert, and
-restrict the key to Maps SDK for Android and Routes API. Not yet confirmed
+restrict the key to Maps SDK for Android and Routes API. He asked to do it a week later and has a calendar reminder for 2026-10-15. Not yet confirmed
 done, so ask him next session. Do not add an Android-app restriction to the
 key: the Routes call is plain HTTP and does not send the package headers.
 
