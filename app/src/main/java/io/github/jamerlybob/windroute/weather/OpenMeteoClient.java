@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -44,11 +45,12 @@ public final class OpenMeteoClient {
             lngs.append(String.format(Locale.US, "%.4f", place.lng));
         }
         return BASE + "?latitude=" + lats + "&longitude=" + lngs
-                + "&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+                + "&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,"
+                + "temperature_2m,precipitation,precipitation_probability"
                 + "&wind_speed_unit=kmh"
                 // Times as plain seconds since 1970, so no time zone parsing is needed.
                 + "&timeformat=unixtime&timezone=GMT"
-                + "&forecast_days=2";
+                + "&forecast_days=8";
     }
 
     public static List<WindForecast> parse(String json) throws IOException {
@@ -74,9 +76,12 @@ public final class OpenMeteoClient {
                     epoch[t] = times.getLong(t);
                 }
                 forecasts.add(new WindForecast(epoch,
-                        numbers(hourly.getJSONArray("wind_speed_10m")),
-                        numbers(hourly.getJSONArray("wind_direction_10m")),
-                        numbers(hourly.getJSONArray("wind_gusts_10m"))));
+                        numbers(hourly.getJSONArray("wind_speed_10m"), 0.0),
+                        numbers(hourly.getJSONArray("wind_direction_10m"), 0.0),
+                        numbers(hourly.getJSONArray("wind_gusts_10m"), 0.0),
+                        optionalNumbers(hourly, "temperature_2m", epoch.length),
+                        optionalNumbers(hourly, "precipitation", epoch.length),
+                        optionalNumbers(hourly, "precipitation_probability", epoch.length)));
             }
             return forecasts;
         } catch (JSONException e) {
@@ -84,12 +89,26 @@ public final class OpenMeteoClient {
         }
     }
 
-    /** A missing hour arrives as null. Treat it as no wind rather than crash. */
-    private static double[] numbers(JSONArray array) {
+    /** A missing wind hour arrives as null. Treat it as no wind rather than crash. */
+    private static double[] numbers(JSONArray array, double missingValue) {
         double[] values = new double[array.length()];
         for (int i = 0; i < values.length; i++) {
-            values[i] = array.isNull(i) ? 0.0 : array.optDouble(i, 0.0);
+            values[i] = array.isNull(i) ? missingValue : array.optDouble(i, missingValue);
         }
         return values;
+    }
+
+    /**
+     * Older saved replies do not have the richer fields. Keep them readable,
+     * and use NaN so callers can tell missing weather from a genuine zero.
+     */
+    private static double[] optionalNumbers(JSONObject hourly, String name, int length) {
+        JSONArray array = hourly.optJSONArray(name);
+        if (array == null) {
+            double[] values = new double[length];
+            Arrays.fill(values, Double.NaN);
+            return values;
+        }
+        return numbers(array, Double.NaN);
     }
 }
