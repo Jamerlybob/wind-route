@@ -28,7 +28,11 @@ import io.github.jamerlybob.windroute.wind.DirectionComparison;
 import io.github.jamerlybob.windroute.wind.RouteWind;
 import io.github.jamerlybob.windroute.wind.WindEffect;
 
-/** Draws one already-computed route and its summary; it performs no I/O. */
+/**
+ * Draws one already-computed route and its summary. Keeping map and view code
+ * here leaves the Activity to coordinate events, and makes it clear that a
+ * redraw never performs network I/O or spends a Google Routes request.
+ */
 public final class RouteMapRenderer {
     private static final float ROUTE_WIDTH_PX = 16f;
     private static final float CASING_WIDTH_PX = 24f;
@@ -56,11 +60,15 @@ public final class RouteMapRenderer {
             all.add(new LatLng(point.lat, point.lng));
         }
 
+        // A wider casing under the coloured route keeps it readable over
+        // parks, water, motorways and either light or dark map tiles.
         map.addPolyline(new PolylineOptions().addAll(all)
                 .color(ContextCompat.getColor(activity, R.color.route_casing))
                 .width(CASING_WIDTH_PX).jointType(JointType.ROUND)
                 .startCap(new RoundCap()).endCap(new RoundCap()));
 
+        // Neighbouring stretches with the same verdict are one polyline. Each
+        // run shares its boundary point with the next so rounded lines join.
         int runStart = 0;
         for (int i = 1; i <= wind.stretches.size(); i++) {
             boolean runEnds = i == wind.stretches.size()
@@ -131,6 +139,8 @@ public final class RouteMapRenderer {
     }
 
     private void fitRoute(List<LatLng> points) {
+        // post() waits until the summary has a measured height. Only then can
+        // map padding keep the fitted route out from under both floating cards.
         summaryCard.post(() -> {
             if (activity.isFinishing() || activity.isDestroyed()) {
                 return;

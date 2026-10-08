@@ -6,10 +6,16 @@ import java.util.List;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 
-/** Distances, smoothed heights and gradients along a route. */
+/**
+ * Cleans raw route elevations and derives gradients, ascent and descent.
+ * Keeping this processing in a value-like class ensures every later feature
+ * uses the same noise rules rather than interpreting raw grid samples anew.
+ */
 public final class ElevationProfile {
 
+    /** One neighbour either side makes the requested three-sample smoother. */
     public static final int SMOOTHING_RADIUS = 1;
+    /** A two-metre hysteresis rejects grid noise without losing gentle rises. */
     public static final double ELEVATION_HYSTERESIS_METERS = 2.0;
 
     public final double[] distanceMeters;

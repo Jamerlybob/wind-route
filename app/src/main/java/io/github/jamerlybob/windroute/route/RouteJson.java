@@ -7,7 +7,11 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Converts a route to the small JSON record kept in SharedPreferences. */
+/**
+ * Converts a Route to the small JSON record kept on the device. Serialization
+ * is isolated here so Route stays a simple value and storage code does not
+ * need to know the shape of every point and warning.
+ */
 public final class RouteJson {
     private RouteJson() {
     }
@@ -36,6 +40,8 @@ public final class RouteJson {
     }
 
     public static Route read(String json) throws JSONException {
+        // Reading is deliberately strict: a partial polyline is not useful and
+        // must not crash startup later when the map tries to draw it.
         JSONObject root = new JSONObject(json);
         JSONArray rawPoints = root.getJSONArray("points");
         List<GeoPoint> points = new ArrayList<>();

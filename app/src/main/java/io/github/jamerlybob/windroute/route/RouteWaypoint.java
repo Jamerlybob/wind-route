@@ -1,6 +1,10 @@
 package io.github.jamerlybob.windroute.route;
 
-/** One end of a route, represented by either readable text or coordinates. */
+/**
+ * One end of a route, represented by either readable text or coordinates.
+ * This explicit either/or value lets RoutesClient support "My location"
+ * without teaching its caller how Google's request JSON represents endpoints.
+ */
 public final class RouteWaypoint {
     public final String address;
     public final GeoPoint coordinates;

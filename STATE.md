@@ -4,47 +4,65 @@
 
 ## Where it is
 
-v0.1 works end to end. Verified on the emulator with a real key: Mission Bay to
-Mt Eden, Auckland returned 12.9 km, 50 min, 66% headwind, and the route drew
-coloured correctly for the south-westerly in the forecast. 43 unit tests pass,
-lint is clean, CI is green. James has the APK on his phone but has not reported
-back on it yet.
+Milestone 1 is in and works on the emulator (2026-10-08). James confirmed v0.1
+on his OPPO with a Wellington route the same day and asked for the whole
+roadmap, with Codex doing most of the work.
 
-The Maps key is in `local.properties` on James's PC. Google Cloud project,
-billing, Maps SDK for Android and Routes API are set up.
+On screen now: my location as the start, suggestions from the free Geocoder
+with recent places, swap and the other direction's wind, a settings screen
+(units, riding speed, theme, calm threshold), the last route restored on a
+cold start with no Routes call, Google's cycling notice always shown.
 
-## Known gaps in v0.1
+In the code with tests but NOT on screen yet (106 unit tests pass):
 
-- No Google cycling warning appeared on the test route. Check whether
-  `routes.warnings` is really empty for bicycle routes or whether the notice
-  has to be shown unconditionally (Google's terms require it).
-- The launcher icon is still the Android Studio default.
-- Addresses are typed free text with no suggestions.
-- Departure is only Now, +1 h or +3 h.
-- A route is lost if the app is killed.
+- `weather/` 8 day forecast with rain and temperature, `RideWeather`
+- `wind/DepartureScorer`, `GustWarnings`, `PowerModel` (wind in minutes)
+- `elevation/` client, profile, `ClimbDetector`, `ClimbWind`
+- `gpx/` parser and writer, `trip/DaySplitter`, `nav/RouteProgress`
+- `poi/` water, food, camping and bike shops from Overpass
+- A new launcher icon (not yet looked at on a device)
+
+## How the work is being done
+
+Claude writes a spec in `docs/specs/`, Codex builds it with
+`codex exec -s workspace-write` (one agent per git worktree so they cannot
+collide), Claude reviews, runs it on the emulator and commits. Read
+`docs/specs/COMMON.md` before handing Codex anything.
+
+Codex hit James's ChatGPT usage limit at about 19:15 on 2026-10-08, part way
+through `docs/specs/M1-review-fixes.md`. It said the limit resets at 23:32.
+Three parallel agents at high reasoning effort used the allowance in about
+two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-Milestone 1 in `docs/ROADMAP.md` is under way. Dark mode is done: the cards
-follow the system through the DayNight theme, and the map uses our own style
-file `res/raw/map_style_night.json`. Checked on the emulator in both modes,
-and the route stays on screen across a switch (it now lives in `RouteState`,
-a ViewModel).
+1. Finish `M1-review-fixes.md` item 3: the comment pass is only partly done
+   (`RouteMapRenderer`, `RouteStore` and `SettingsActivity` are still thin).
+   Items 1 and 2 are done and checked on the emulator.
+2. Build `docs/specs/M2-M3-screen.md`: bottom sheet, departure picker, best
+   time strip, rain, wind cost, gust warnings, hills profile and climbs.
+3. Then Milestone 5 screens (GPX import, trip days, places) and Milestone 4
+   (riding with it). Milestone 4 needs the voice-cue research in
+   `docs/RESEARCH.md` done first and a real phone to test on.
 
-The colour theme is done too: a blue palette (`brand_*` in `colors.xml`, with
-a dark copy in `values-night`) wired into the Material colour roles in
-`themes.xml`. Blue because the wind colours do not use it.
+## Known gaps
 
-Next: "use my location" as the start, then place suggestions with the free
-Geocoder, swap start and finish, and settings.
+- Geocoder suggestions could not be confirmed on the emulator: its Geocoder
+  logs "forward geocoding network failure". Recent places do appear in the
+  dropdown. Needs a check on James's phone.
+- Focusing an empty field does not list recent places; typing does.
+- "My location" has only been tried with the emulator's fake position.
+- With approximate-only permission the start can be a couple of km out.
+- `GpxParser` hardening is best-effort on Android's XML parser and has only
+  run on the desktop JVM. Try a real GPX on a device when import is built.
+- `OverpassClient` thins a long route to 100 points; on a long winding route
+  the 500 m corridor may miss places. Widen it or split the route.
+- The legacy `mipmap-*` WebP icons (Android 7 only) are still the default.
 
 Note for whoever does maps work next: the emulator's Play services loads the
 legacy map renderer, and `GoogleMap.setMapColorScheme` is ignored there
 (logcat says so). That is why dark mode is a JSON style, not the colour
 scheme call. Do not switch back without testing on a legacy-renderer device.
-
-Before building Milestone 3 (bikepacking), finish the research gap noted at the
-bottom of `docs/RESEARCH.md`.
 
 ## Cost: James will not pay for anything
 

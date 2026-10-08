@@ -2,7 +2,10 @@ package io.github.jamerlybob.windroute.settings;
 
 import java.util.Objects;
 
-/** All user choices, with no Android dependency so calculations can be tested. */
+/**
+ * One immutable snapshot of every user choice. Keeping this model free of
+ * Android makes defaults, equality and calculations straightforward to test.
+ */
 public final class Settings {
     public enum DistanceUnit { KILOMETERS, MILES }
     public enum WindSpeedUnit { KMH, MPH, METERS_PER_SECOND, KNOTS }

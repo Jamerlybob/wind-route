@@ -22,14 +22,14 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
-        <!-- configChanges: rotating the phone would normally destroy and rebuild
-             the activity, losing the route on screen. Declaring these tells
-             Android we will cope with the new size ourselves, and since the
-             layout is one map with two cards, there is nothing to do. -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />
 
+        <!-- configChanges: rotating the phone would normally destroy and rebuild
+             the activity, losing the route on screen. Declaring these tells
+             Android we will cope with the new size ourselves, and since the
+             layout is one map with two cards, there is nothing to do. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"

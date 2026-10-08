@@ -3,20 +3,32 @@ package io.github.jamerlybob.windroute.elevation;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Finds sustained climbs in an elevation profile. */
+/**
+ * Finds sustained climbs in a cleaned elevation profile. Detection is kept
+ * separate from fetching and display so its cycling-specific thresholds can
+ * be understood and tested with small synthetic roads.
+ */
 public final class ClimbDetector {
 
+    /** Wahoo Summit's documented minimum length for a detected climb. */
     public static final double MIN_LENGTH_METERS = 400.0;
+    /** The project spec uses 3% to exclude long but nearly flat drags. */
     public static final double MIN_AVERAGE_GRADIENT_PERCENT = 3.0;
+    /** The project spec requires enough total rise to be useful to a rider. */
     public static final double MIN_GAIN_METERS = 15.0;
+    /** About 2% separates a real climb from its gentler approach road. */
     public static final double MIN_CLIMBING_GRADIENT_PERCENT = 2.0;
+    /** Two typical 100 m samples may bridge short flats within one climb. */
     public static final double MAX_INTERRUPTION_METERS = 200.0;
+    /** Five metres tolerates elevation noise but ends a meaningful descent. */
     public static final double MAX_INTERRUPTION_HEIGHT_LOSS_METERS = 5.0;
+    /** The product reports the steepest 100 m, a useful cycling-sized effort. */
     public static final double STEEPEST_WINDOW_METERS = 100.0;
 
     private ClimbDetector() {
     }
 
+    /** Measurements for one detected climb, ready for UI or wind analysis. */
     public static final class Climb {
         public final double startDistanceMeters;
         public final double lengthMeters;

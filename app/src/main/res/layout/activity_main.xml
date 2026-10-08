@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The map fills the screen. Search and summary cards float above it. -->
+<!-- The map fills the screen. Two cards float over it: where you are going at
+     the top, what the wind will do at the bottom. -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -43,7 +44,9 @@
                     android:layout_height="wrap_content"
                     android:imeOptions="actionNext"
                     android:inputType="textPostalAddress"
-                    android:maxLines="1" />
+                    android:maxLines="1"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -63,7 +66,9 @@
                     android:layout_height="wrap_content"
                     android:imeOptions="actionSearch"
                     android:inputType="textPostalAddress"
-                    android:maxLines="1" />
+                    android:maxLines="1"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Controls get their own row so none are hidden by the button at 360 dp. -->
@@ -173,6 +178,8 @@
                 android:textColor="?attr/colorPrimary"
                 android:visibility="gone" />
 
+            <!-- One bar, split by how much of the ride each kind of wind takes.
+                 The four widths are set from code as layout weights. -->
             <LinearLayout
                 android:id="@+id/share_bar"
                 android:layout_width="match_parent"

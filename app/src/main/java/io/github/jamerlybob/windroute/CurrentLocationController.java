@@ -16,8 +16,13 @@ import java.util.Map;
 
 import io.github.jamerlybob.windroute.route.GeoPoint;
 
-/** Requests permission only after a tap, then obtains one platform location. */
+/**
+ * Requests permission only after a tap, then obtains one platform location.
+ * Permission contracts and provider selection live here so MainActivity does
+ * not mix Android location lifecycle details with route-search decisions.
+ */
 public final class CurrentLocationController {
+    /** Reports outcomes without making this controller depend on screen views. */
     public interface Listener {
         void onLocation(GeoPoint point);
         void onLocationPermissionAvailable();
@@ -31,6 +36,8 @@ public final class CurrentLocationController {
     public CurrentLocationController(AppCompatActivity activity, Listener listener) {
         this.activity = activity;
         this.listener = listener;
+        // ActivityResultLauncher ties the permission dialog to the Activity's
+        // lifecycle, including recreation, instead of relying on request codes.
         permissionRequest = activity.registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(), this::permissionResult);
     }
@@ -69,6 +76,8 @@ public final class CurrentLocationController {
 
     @SuppressLint("MissingPermission")
     private void findCurrentLocation() {
+        // The lint suppression is narrow because every path here follows a
+        // successful runtime permission check in requestAfterTap().
         LocationManager manager = (LocationManager) activity.getSystemService(
                 Context.LOCATION_SERVICE);
         String provider = chooseProvider(manager);

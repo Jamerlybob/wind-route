@@ -4,7 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Builds the required fixed cycling notice without repeating Google text. */
+/**
+ * Builds the warnings shown with every cycling route. Keeping this as pure
+ * list logic makes the required fixed notice and Google's returned warnings
+ * easy to combine without blank or repeated messages.
+ */
 public final class CyclingWarnings {
     private CyclingWarnings() {
     }

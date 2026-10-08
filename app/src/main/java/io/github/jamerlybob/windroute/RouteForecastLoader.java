@@ -10,9 +10,15 @@ import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.weather.OpenMeteoClient;
 import io.github.jamerlybob.windroute.weather.WindForecast;
 
-/** Fetches free weather samples for a route; it never calls Google Routes. */
+/**
+ * Chooses weather sample points and fetches their forecasts in one place.
+ * Separating this from route loading lets restores refresh free Open-Meteo
+ * data without accidentally making another quota-limited Google Routes call.
+ */
 public final class RouteForecastLoader {
+    /** Close enough to follow changing weather without an excessive request. */
     private static final double SAMPLE_SPACING_METERS = 5_000;
+    /** Caps both URL size and work when a route is unusually long. */
     private static final int MAX_SAMPLES = 60;
 
     private RouteForecastLoader() {
@@ -28,6 +34,7 @@ public final class RouteForecastLoader {
         return new Result(indexes, OpenMeteoClient.fetch(places));
     }
 
+    /** Keeps each forecast paired with the route index it was sampled from. */
     public static final class Result {
         public final List<Integer> sampleIndexes;
         public final List<WindForecast> forecasts;

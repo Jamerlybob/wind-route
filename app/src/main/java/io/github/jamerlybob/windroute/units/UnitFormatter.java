@@ -4,7 +4,11 @@ import java.util.Locale;
 
 import io.github.jamerlybob.windroute.settings.Settings;
 
-/** Unit conversion and number formatting, kept independent of Android. */
+/**
+ * Converts the app's kilometre-based data into the user's chosen units.
+ * Android resources are passed in as formats so all arithmetic remains plain
+ * Java and can be tested without a device.
+ */
 public final class UnitFormatter {
     private static final double METERS_PER_MILE = 1609.344;
     private static final double KMH_PER_MPH = 1.609344;

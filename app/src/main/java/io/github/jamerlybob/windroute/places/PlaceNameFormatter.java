@@ -3,7 +3,11 @@ package io.github.jamerlybob.windroute.places;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Pure string logic for turning Geocoder fields into one readable line. */
+/**
+ * Turns inconsistent Geocoder fields into one readable line. It is a separate
+ * pure class because Address is an Android type, while the fallback and
+ * de-duplication rules can be tested using ordinary strings.
+ */
 public final class PlaceNameFormatter {
     private PlaceNameFormatter() {
     }

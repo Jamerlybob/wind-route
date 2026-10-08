@@ -20,7 +20,11 @@ import io.github.jamerlybob.windroute.settings.Settings;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
 import io.github.jamerlybob.windroute.units.UnitText;
 
-/** A small, dependency-free settings screen backed by SharedPreferences. */
+/**
+ * Presents the app's small fixed set of choices using ordinary Android views.
+ * Conversion and persistence stay in separate classes so this Activity only
+ * translates spinner selections into one Settings value.
+ */
 public final class SettingsActivity extends AppCompatActivity {
     private Spinner distance;
     private Spinner windSpeed;
@@ -52,6 +56,8 @@ public final class SettingsActivity extends AppCompatActivity {
     private void keepContentClearOfSystemBars() {
         View root = findViewById(R.id.settings_root);
         int normal = Math.round(16 * getResources().getDisplayMetrics().density);
+        // Edge-to-edge lets the background fill the screen; insets then add
+        // enough padding to keep controls below system bars on every device.
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(normal + bars.left, normal + bars.top,
@@ -99,6 +105,8 @@ public final class SettingsActivity extends AppCompatActivity {
     }
 
     private void listenForChanges() {
+        // Spinners also call this listener for their initial selection. The
+        // equality check in saveSelections prevents those callbacks writing.
         AdapterView.OnItemSelectedListener listener = new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {

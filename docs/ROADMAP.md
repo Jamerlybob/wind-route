@@ -3,6 +3,9 @@
 One milestone at a time, top to bottom. Each one ends with an APK on James's
 phone. Tick items as they land.
 
+Milestones 2, 3 and 5 have their logic written and tested but nothing on
+screen yet, so their boxes stay unticked. `STATE.md` lists what exists.
+
 The test for every milestone: would James open this instead of Google Maps
 before a ride?
 
@@ -18,15 +21,15 @@ before a ride?
 
 - [x] Dark mode: follows the system, with a dark Google map style to match
 - [x] A real colour theme and typography (replace default Material purple)
-- [ ] "My location" as the start (location permission, asked properly)
-- [ ] Place suggestions while typing, using Android's free Geocoder (James
+- [x] "My location" as the start (location permission, asked properly)
+- [x] Place suggestions while typing, using Android's free Geocoder (James
       chose free over Places autocomplete)
-- [ ] Swap start and finish with one tap, and show both directions' wind side
+- [x] Swap start and finish with one tap, and show both directions' wind side
       by side ("ride it the other way: 70% tailwind")
-- [ ] Settings screen: km or miles, km/h or mph or m/s or knots, your usual
+- [x] Settings screen: km or miles, km/h or mph or m/s or knots, your usual
       riding speed, theme (system, light, dark), calm threshold
-- [ ] Remember the last route and recent places
-- [ ] Show Google's cycling warning as required
+- [x] Remember the last route and recent places
+- [x] Show Google's cycling warning as required
 
 ## Milestone 2: when should I leave?
 

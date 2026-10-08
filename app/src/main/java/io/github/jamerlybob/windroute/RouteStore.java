@@ -13,7 +13,11 @@ import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.route.RouteJson;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
 
-/** Persists the last drawn route and the small recent-place list. */
+/**
+ * Persists the last drawn route and the small recent-place list. This storage
+ * concern is separate from the Activity so corrupt old data can be handled in
+ * one place and startup remains safe.
+ */
 public final class RouteStore {
     private static final String LAST_ORIGIN = "last_origin";
     private static final String LAST_DESTINATION = "last_destination";
@@ -24,6 +28,8 @@ public final class RouteStore {
     private final SharedPreferences preferences;
 
     public RouteStore(Context context) {
+        // SharedPreferences suits this tiny local record and writes it without
+        // introducing a database or any network-backed account.
         preferences = context.getSharedPreferences(SettingsStore.PREFERENCES_NAME,
                 Context.MODE_PRIVATE);
     }
@@ -86,6 +92,7 @@ public final class RouteStore {
         preferences.edit().putString(RECENT_PLACES, stored.toString()).apply();
     }
 
+    /** The route and its display labels must be restored as one snapshot. */
     public static final class SavedRoute {
         public final String origin;
         public final String destination;

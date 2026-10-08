@@ -7,7 +7,10 @@ import java.util.Locale;
 import io.github.jamerlybob.windroute.R;
 import io.github.jamerlybob.windroute.settings.Settings;
 
-/** Connects the pure converter to localized Android string formats. */
+/**
+ * Connects the pure unit converter to localized Android string resources.
+ * This small boundary prevents Context from leaking into calculation code.
+ */
 public final class UnitText {
     private final Context context;
     private final Settings settings;

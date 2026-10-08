@@ -6,12 +6,20 @@ import java.util.List;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 
-/** Locates a rider on, or near, a route polyline. */
+/**
+ * Locates a rider on, or near, a route polyline. This pure geometry class is
+ * separate from live location updates so noisy GPS behaviour can be tested
+ * without Android and reused by navigation and spoken cues.
+ */
 public final class RouteProgress {
 
+    /** Forty metres allows normal phone GPS error before declaring off-route. */
     public static final double OFF_ROUTE_THRESHOLD_METERS = 40.0;
+    /** Candidates within 15 m are close enough for progress to break the tie. */
     public static final double HINT_DISTANCE_TOLERANCE_METERS = 15.0;
+    /** A fix may drift 30 m backward without jumping to an earlier route leg. */
     public static final double HINT_BACKTRACK_TOLERANCE_METERS = 30.0;
+    /** Mean Earth radius used only by the short-segment local projection. */
     private static final double EARTH_RADIUS_M = 6_371_000.0;
 
     public final GeoPoint nearestPoint;
@@ -117,6 +125,7 @@ public final class RouteProgress {
                 Math.hypot(nearestX, nearestY));
     }
 
+    /** One position projected onto one segment before the best match is chosen. */
     private static final class Candidate {
         final GeoPoint point;
         final int segmentIndex;

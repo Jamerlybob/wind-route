@@ -5,7 +5,11 @@ import android.content.SharedPreferences;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
-/** Loads and saves settings using Android's small key-value store. */
+/**
+ * Loads, validates and saves settings using Android's small key-value store.
+ * Centralising both persistence and theme mapping keeps Android details out of
+ * the immutable Settings model and protects callers from damaged old values.
+ */
 public final class SettingsStore {
     public static final String PREFERENCES_NAME = "windroute";
 
@@ -19,6 +23,8 @@ public final class SettingsStore {
     }
 
     public static Settings load(Context context) {
+        // SharedPreferences is appropriate for a handful of primitive values;
+        // MODE_PRIVATE keeps them inside this app's sandbox.
         SharedPreferences values = context.getSharedPreferences(PREFERENCES_NAME,
                 Context.MODE_PRIVATE);
         Settings defaults = Settings.defaults();
@@ -42,6 +48,7 @@ public final class SettingsStore {
     }
 
     public static void save(Context context, Settings settings) {
+        // apply() persists asynchronously so a spinner tap never blocks drawing.
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE).edit()
                 .putString(DISTANCE, settings.distanceUnit.name())
                 .putString(WIND_SPEED, settings.windSpeedUnit.name())

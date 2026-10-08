@@ -51,6 +51,9 @@ import io.github.jamerlybob.windroute.wind.RouteWind;
  */
 public final class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
         CurrentLocationController.Listener {
+    // Route and weather calls must not run on Android's main thread, while
+    // views may only be touched from it. Work therefore goes to this executor
+    // and its results come back through a Handler tied to the main Looper.
     private final ExecutorService background = Executors.newSingleThreadExecutor();
     private final Handler mainThread = new Handler(Looper.getMainLooper());
 
@@ -63,6 +66,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     private View searchCard;
     private View summaryCard;
     private ChipGroup departChips;
+    // A ViewModel survives the Activity recreation used for theme changes, so
+    // changing light/dark mode does not spend another Google Routes request.
     private RouteState state;
     private RouteStore routeStore;
     private Settings settings;
@@ -86,7 +91,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
         currentLocation = new CurrentLocationController(this, this);
         suggestions = new PlaceSuggestionsController(this, originInput, destinationInput,
-                routeStore, background, mainThread, this::visibleMapBounds,
+                routeStore, mainThread, this::visibleMapBounds,
                 getString(R.string.my_location), () -> state.originCoordinates = null,
                 () -> state.destinationCoordinates = null);
 
@@ -152,6 +157,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
+        // The JSON style works on the legacy map renderer too. The SDK's
+        // setMapColorScheme call is silently ignored on devices still using it.
         if (isNight()) {
             map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style_night));
         }
@@ -181,6 +188,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     /** A restore refreshes only free weather; it must never spend a Routes call. */
     private void refreshForecast(Route route) {
         setBusy(true);
+        // A newer request makes any queued result obsolete. This matters when
+        // an Activity is restored while earlier background work is finishing.
         int generation = ++searchGeneration;
         background.execute(() -> {
             try {
@@ -230,6 +239,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 : RouteWaypoint.coordinates(state.destinationCoordinates);
         hideKeyboard();
         setBusy(true);
+        // Only the newest search may replace the route: network callbacks can
+        // finish after their Activity is gone or after another request starts.
         int generation = ++searchGeneration;
 
         background.execute(() -> {

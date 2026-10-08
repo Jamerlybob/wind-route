@@ -8,7 +8,11 @@ import java.util.List;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 
-/** A useful place positioned by progress along a route. */
+/**
+ * Pairs a useful place with its progress along and distance from a route.
+ * Keeping this derived geometry separate from Poi lets the same place remain
+ * reusable while route ordering and gap checks stay pure and testable.
+ */
 public final class PoiAlongRoute {
     public final Poi poi;
     public final double distanceAlongRouteMeters;
