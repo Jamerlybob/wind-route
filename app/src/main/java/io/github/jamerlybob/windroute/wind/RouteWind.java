@@ -86,6 +86,17 @@ public final class RouteWind {
      */
     public static RouteWind analyze(Route route, List<Integer> sampleIndexes,
                                     List<WindForecast> forecasts, long departEpochSeconds) {
+        return analyze(route, sampleIndexes, forecasts, departEpochSeconds,
+                route.durationSeconds, WindMath.CALM_BELOW_KMH);
+    }
+
+    /**
+     * Analyzes a route with the rider's chosen duration and calm threshold.
+     * The original overload remains for callers that want Google's estimate.
+     */
+    public static RouteWind analyze(Route route, List<Integer> sampleIndexes,
+                                    List<WindForecast> forecasts, long departEpochSeconds,
+                                    long durationSeconds, double calmBelowKmh) {
         List<GeoPoint> points = route.points;
         double[] cumulative = GeoMath.cumulativeMeters(points);
         double total = cumulative[cumulative.length - 1];
@@ -106,7 +117,7 @@ public final class RouteWind {
             // Where will the rider be in time? Spread Google's ride duration
             // evenly over the distance. Good enough to pick a forecast hour.
             long arrival = departEpochSeconds
-                    + Math.round(route.durationSeconds * (total > 0 ? middle / total : 0));
+                    + Math.round(durationSeconds * (total > 0 ? middle / total : 0));
 
             WindForecast forecast = forecasts.get(
                     nearestSample(sampleIndexes, cumulative, middle));
@@ -119,12 +130,32 @@ public final class RouteWind {
             double heading = GeoMath.bearingDegrees(points.get(from), points.get(i));
 
             stretches.add(new Stretch(from, i, length,
-                    WindMath.classify(heading, direction, speed),
+                    WindMath.classify(heading, direction, speed, calmBelowKmh),
                     WindMath.headwindComponent(heading, direction, speed),
                     speed, forecast.gustKmh[hour]));
             from = i;
         }
         return new RouteWind(stretches);
+    }
+
+    /**
+     * Analyzes the same geometry from finish to start without another route or
+     * weather request. Forecasts are reversed with their sample positions so
+     * each forecast stays attached to the same physical place.
+     */
+    public static RouteWind analyzeReversed(Route route, List<Integer> sampleIndexes,
+                                            List<WindForecast> forecasts,
+                                            long departEpochSeconds, long durationSeconds,
+                                            double calmBelowKmh) {
+        List<Integer> reversedIndexes = new ArrayList<>();
+        List<WindForecast> reversedForecasts = new ArrayList<>();
+        int lastPoint = route.points.size() - 1;
+        for (int i = sampleIndexes.size() - 1; i >= 0; i--) {
+            reversedIndexes.add(lastPoint - sampleIndexes.get(i));
+            reversedForecasts.add(forecasts.get(i));
+        }
+        return analyze(route.reversed(), reversedIndexes, reversedForecasts,
+                departEpochSeconds, durationSeconds, calmBelowKmh);
     }
 
     /** Position in sampleIndexes of the sample closest, along the road, to a distance. */

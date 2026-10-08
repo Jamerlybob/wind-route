@@ -14,6 +14,7 @@ import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.weather.WindForecast;
+import io.github.jamerlybob.windroute.wind.DirectionComparison;
 import io.github.jamerlybob.windroute.wind.RouteWind;
 import io.github.jamerlybob.windroute.wind.WindEffect;
 
@@ -117,6 +118,54 @@ public class RouteWindTest {
     public void lightWindIsCalm() {
         Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 40), 600);
         assertEquals(1.0, analyze(north, steady(3, 0)).share(WindEffect.CALM), 1e-9);
+    }
+
+    @Test
+    public void chosenCalmThresholdOverridesTheDefault() {
+        Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 40), 600);
+        List<Integer> samples = Collections.singletonList(0);
+        List<WindForecast> forecasts = Collections.singletonList(steady(8, 0));
+        RouteWind wind = RouteWind.analyze(north, samples, forecasts, DEPART,
+                north.durationSeconds, 10);
+        assertEquals(1.0, wind.share(WindEffect.CALM), 1e-9);
+    }
+
+    @Test
+    public void chosenRidingDurationChangesForecastTiming() {
+        Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 400), 600);
+        WindForecast swinging = hourly(new double[]{20, 20, 20}, new double[]{0, 180, 180});
+        RouteWind wind = RouteWind.analyze(north, Collections.singletonList(0),
+                Collections.singletonList(swinging), DEPART, 2 * HOUR, 5);
+        assertEquals(0.25, wind.share(WindEffect.HEADWIND), 0.02);
+    }
+
+    @Test
+    public void reverseAnalysisKeepsForecastsAtTheirPhysicalEnds() {
+        Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 400), 600);
+        List<Integer> samples = Arrays.asList(0, north.points.size() - 1);
+        List<WindForecast> forecasts = Arrays.asList(steady(20, 0), steady(20, 180));
+        RouteWind reverse = RouteWind.analyzeReversed(north, samples, forecasts,
+                DEPART, north.durationSeconds, 5);
+        // The reverse ride starts at the original north end, where the
+        // southerly is a headwind for a southbound rider.
+        assertEquals(WindEffect.HEADWIND, reverse.stretches.get(0).effect);
+        assertEquals(WindEffect.TAILWIND,
+                reverse.stretches.get(reverse.stretches.size() - 1).effect);
+    }
+
+    @Test
+    public void reverseComparisonOnlyAppearsForAMeaningfulChange() {
+        Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 40), 600);
+        RouteWind outward = analyze(north, steady(20, 0));
+        RouteWind reverse = RouteWind.analyzeReversed(north,
+                Collections.singletonList(0), Collections.singletonList(steady(20, 0)),
+                DEPART, north.durationSeconds, 5);
+        DirectionComparison comparison = DirectionComparison.compare(outward, reverse);
+        assertTrue(comparison.meaningful);
+        assertEquals(WindEffect.TAILWIND, comparison.effect);
+
+        DirectionComparison unchanged = DirectionComparison.compare(outward, outward);
+        assertTrue(!unchanged.meaningful);
     }
 
     @Test

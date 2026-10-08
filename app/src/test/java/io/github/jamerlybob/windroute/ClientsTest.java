@@ -15,6 +15,7 @@ import java.util.Locale;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.route.RoutesClient;
+import io.github.jamerlybob.windroute.route.RouteWaypoint;
 import io.github.jamerlybob.windroute.weather.OpenMeteoClient;
 import io.github.jamerlybob.windroute.weather.WindForecast;
 
@@ -60,6 +61,16 @@ public class ClientsTest {
         assertTrue(body.contains("\"travelMode\":\"BICYCLE\""));
         assertTrue(body.contains("\"address\":\"Mission Bay\""));
         assertTrue(body.contains("Mt \\\"Eden\\\""));    // quotes in an address are escaped
+    }
+
+    @Test
+    public void requestCanMixCurrentCoordinatesAndAnAddress() {
+        String body = RoutesClient.requestBody(
+                RouteWaypoint.coordinates(new GeoPoint(-36.85, 174.76)),
+                RouteWaypoint.address("Mt Eden"));
+        assertTrue(body.contains("\"latitude\":-36.85"));
+        assertTrue(body.contains("\"longitude\":174.76"));
+        assertTrue(body.contains("\"destination\":{\"address\":\"Mt Eden\"}"));
     }
 
     @Test

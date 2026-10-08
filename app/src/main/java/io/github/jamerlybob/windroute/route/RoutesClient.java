@@ -38,6 +38,10 @@ public final class RoutesClient {
     }
 
     public Route fetch(String origin, String destination) throws IOException {
+        return fetch(RouteWaypoint.address(origin), RouteWaypoint.address(destination));
+    }
+
+    public Route fetch(RouteWaypoint origin, RouteWaypoint destination) throws IOException {
         Map<String, String> headers = new HashMap<>();
         headers.put("X-Goog-Api-Key", apiKey);
         headers.put("X-Goog-FieldMask", FIELD_MASK);
@@ -45,15 +49,30 @@ public final class RoutesClient {
     }
 
     public static String requestBody(String origin, String destination) {
+        return requestBody(RouteWaypoint.address(origin), RouteWaypoint.address(destination));
+    }
+
+    public static String requestBody(RouteWaypoint origin, RouteWaypoint destination) {
         try {
             return new JSONObject()
-                    .put("origin", new JSONObject().put("address", origin))
-                    .put("destination", new JSONObject().put("address", destination))
+                    .put("origin", waypointJson(origin))
+                    .put("destination", waypointJson(destination))
                     .put("travelMode", "BICYCLE")
                     .toString();
         } catch (JSONException e) {
             throw new IllegalStateException(e);   // only thrown for a null key
         }
+    }
+
+    private static JSONObject waypointJson(RouteWaypoint waypoint) throws JSONException {
+        if (waypoint.coordinates != null) {
+            JSONObject latLng = new JSONObject()
+                    .put("latitude", waypoint.coordinates.lat)
+                    .put("longitude", waypoint.coordinates.lng);
+            return new JSONObject().put("location",
+                    new JSONObject().put("latLng", latLng));
+        }
+        return new JSONObject().put("address", waypoint.address);
     }
 
     /** Turns the response body into a Route, or throws with a message fit to show. */

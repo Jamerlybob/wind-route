@@ -1,16 +1,17 @@
 package io.github.jamerlybob.windroute;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.TextUtils;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -22,79 +23,82 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.JointType;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
+import io.github.jamerlybob.windroute.route.RouteWaypoint;
 import io.github.jamerlybob.windroute.route.RoutesClient;
-import io.github.jamerlybob.windroute.weather.OpenMeteoClient;
-import io.github.jamerlybob.windroute.weather.WindForecast;
+import io.github.jamerlybob.windroute.settings.Settings;
+import io.github.jamerlybob.windroute.settings.SettingsStore;
+import io.github.jamerlybob.windroute.units.UnitFormatter;
 import io.github.jamerlybob.windroute.wind.RouteWind;
-import io.github.jamerlybob.windroute.wind.WindEffect;
 
 /**
- * The one screen: a map, a card to say where you are going, and a card that
- * says what the wind will do about it.
- *
- * <p>All the thinking happens in the route, weather and wind packages. This
- * class only collects input, runs the network calls off the main thread, and
- * draws what comes back.
+ * The main screen wires user input, background work and route drawing together.
+ * Feature details live in small collaborators so this Activity stays readable.
  */
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
-
-    /** Look up the forecast about this often along the route. */
-    private static final double SAMPLE_SPACING_METERS = 5_000;
-    /** Never ask the weather service for more places than this in one request. */
-    private static final int MAX_SAMPLES = 60;
-
-    private static final float ROUTE_WIDTH_PX = 16f;
-    private static final float CASING_WIDTH_PX = 24f;
-
-    // Network calls must not run on the main thread, and views may only be
-    // touched from it. So work goes to this background thread, and results come
-    // back through a Handler tied to the main thread.
+public final class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
+        CurrentLocationController.Listener {
     private final ExecutorService background = Executors.newSingleThreadExecutor();
     private final Handler mainThread = new Handler(Looper.getMainLooper());
 
     private GoogleMap map;
-    private TextView originInput;
-    private TextView destinationInput;
+    private RouteMapRenderer renderer;
+    private MaterialAutoCompleteTextView originInput;
+    private MaterialAutoCompleteTextView destinationInput;
     private View goButton;
     private View progress;
     private View searchCard;
     private View summaryCard;
     private ChipGroup departChips;
-
-    // Kept after a search so that changing the departure time can redraw
-    // without asking Google or the weather service again. It lives in a
-    // ViewModel so it also survives a switch between light and dark.
     private RouteState state;
+    private RouteStore routeStore;
+    private Settings settings;
+    private CurrentLocationController currentLocation;
+    private PlaceSuggestionsController suggestions;
+    private int searchGeneration;
+    private boolean busy;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        state = new ViewModelProvider(this).get(RouteState.class);
 
+        state = new ViewModelProvider(this).get(RouteState.class);
+        routeStore = new RouteStore(this);
+        settings = SettingsStore.load(this);
+        bindViews();
+        keepCardsClearOfSystemBars();
+        wireControls();
+
+        currentLocation = new CurrentLocationController(this, this);
+        suggestions = new PlaceSuggestionsController(this, originInput, destinationInput,
+                routeStore, background, mainThread, this::visibleMapBounds,
+                getString(R.string.my_location), () -> state.originCoordinates = null,
+                () -> state.destinationCoordinates = null);
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
+        restoreLastRouteIfNeeded();
+    }
+
+    private void bindViews() {
         originInput = findViewById(R.id.origin);
         destinationInput = findViewById(R.id.destination);
         goButton = findViewById(R.id.go);
@@ -102,9 +106,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         searchCard = findViewById(R.id.search_card);
         summaryCard = findViewById(R.id.summary_card);
         departChips = findViewById(R.id.depart_chips);
+    }
 
-        keepCardsClearOfSystemBars();
-
+    private void wireControls() {
         goButton.setOnClickListener(v -> search());
         destinationInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -115,42 +119,254 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
         departChips.setOnCheckedStateChangeListener((group, checkedIds) -> showWind());
 
-        SupportMapFragment mapFragment =
-                (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
+        TextInputLayout originLayout = findViewById(R.id.origin_layout);
+        originLayout.setEndIconOnClickListener(v -> currentLocation.requestAfterTap());
+        TextInputLayout destinationLayout = findViewById(R.id.destination_layout);
+        destinationLayout.setEndIconOnClickListener(v -> swapPlaces());
+        findViewById(R.id.settings).setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Settings latest = SettingsStore.load(this);
+        if (settings != null && !latest.equals(settings)) {
+            settings = latest;
+            showWind();
+        } else {
+            settings = latest;
         }
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
+        if (suggestions != null) {
+            suggestions.destroy();
+        }
         background.shutdownNow();
+        super.onDestroy();
     }
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
-        // Match the map to the cards. The dark look is a style file of our own
-        // (res/raw/map_style_night.json) rather than the SDK's built-in
-        // setMapColorScheme, because that call is silently ignored on phones
-        // whose Play services still uses the older map renderer.
         if (isNight()) {
             map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style_night));
         }
-        showWind();   // in case a route arrived before the map did
+        renderer = new RouteMapRenderer(this, map, findViewById(R.id.main),
+                searchCard, summaryCard);
+        enableMyLocationIfAllowed();
+        showWind();
     }
 
-    /**
-     * The app draws behind the status and navigation bars. This pushes the two
-     * cards in by the size of those bars so nothing sits under the clock.
-     */
+    private void restoreLastRouteIfNeeded() {
+        if (state.route != null) {
+            if (state.forecasts == null) {
+                refreshForecast(state.route);
+            }
+            return;
+        }
+        RouteStore.SavedRoute saved = routeStore.loadRoute();
+        if (saved == null) {
+            return;
+        }
+        originInput.setText(saved.origin);
+        destinationInput.setText(saved.destination);
+        state.route = saved.route;
+        refreshForecast(saved.route);
+    }
+
+    /** A restore refreshes only free weather; it must never spend a Routes call. */
+    private void refreshForecast(Route route) {
+        setBusy(true);
+        int generation = ++searchGeneration;
+        background.execute(() -> {
+            try {
+                RouteForecastLoader.Result weather = RouteForecastLoader.load(route);
+                mainThread.post(() -> {
+                    if (generation != searchGeneration || isDestroyed()) {
+                        return;
+                    }
+                    state.sampleIndexes = weather.sampleIndexes;
+                    state.forecasts = weather.forecasts;
+                    setBusy(false);
+                    showWind();
+                });
+            } catch (Exception e) {
+                postFailure(generation, e);
+            }
+        });
+    }
+
+    /** The only method that calls Google Routes, reached by an explicit user action. */
+    private void search() {
+        if (busy) {
+            return;
+        }
+        String origin = originInput.getText().toString().trim();
+        String destination = destinationInput.getText().toString().trim();
+        if (origin.isEmpty() || destination.isEmpty()) {
+            showMessage(getString(R.string.error_need_both));
+            return;
+        }
+        if (BuildConfig.MAPS_API_KEY.isEmpty()) {
+            showMessage(getString(R.string.error_no_key));
+            return;
+        }
+        String myLocation = getString(R.string.my_location);
+        if ((origin.equals(myLocation) && state.originCoordinates == null)
+                || (destination.equals(myLocation) && state.destinationCoordinates == null)) {
+            showMessage(getString(R.string.location_needs_refresh));
+            return;
+        }
+
+        RouteWaypoint originWaypoint = state.originCoordinates == null
+                ? RouteWaypoint.address(origin)
+                : RouteWaypoint.coordinates(state.originCoordinates);
+        RouteWaypoint destinationWaypoint = state.destinationCoordinates == null
+                ? RouteWaypoint.address(destination)
+                : RouteWaypoint.coordinates(state.destinationCoordinates);
+        hideKeyboard();
+        setBusy(true);
+        int generation = ++searchGeneration;
+
+        background.execute(() -> {
+            try {
+                Route route = new RoutesClient(BuildConfig.MAPS_API_KEY)
+                        .fetch(originWaypoint, destinationWaypoint);
+                RouteForecastLoader.Result weather = RouteForecastLoader.load(route);
+                mainThread.post(() -> {
+                    if (generation != searchGeneration || isDestroyed()) {
+                        return;
+                    }
+                    state.route = route;
+                    state.sampleIndexes = weather.sampleIndexes;
+                    state.forecasts = weather.forecasts;
+                    routeStore.saveRoute(origin, destination, route);
+                    if (!origin.equals(myLocation)) {
+                        routeStore.addRecentPlace(origin);
+                    }
+                    if (!destination.equals(myLocation)) {
+                        routeStore.addRecentPlace(destination);
+                    }
+                    setBusy(false);
+                    showWind();
+                });
+            } catch (Exception e) {
+                postFailure(generation, e);
+            }
+        });
+    }
+
+    private void postFailure(int generation, Exception error) {
+        String message = error.getMessage() != null ? error.getMessage() : error.toString();
+        mainThread.post(() -> {
+            if (generation != searchGeneration || isDestroyed()) {
+                return;
+            }
+            setBusy(false);
+            showMessage(message);
+        });
+    }
+
+    private void swapPlaces() {
+        if (busy) {
+            return;
+        }
+        String origin = originInput.getText().toString();
+        String destination = destinationInput.getText().toString();
+        GeoPoint originPoint = state.originCoordinates;
+        GeoPoint destinationPoint = state.destinationCoordinates;
+        originInput.setText(destination);
+        destinationInput.setText(origin);
+        state.originCoordinates = destinationPoint;
+        state.destinationCoordinates = originPoint;
+        if (state.route != null && state.forecasts != null) {
+            search();
+        }
+    }
+
+    /** Recomputes presentation from retained data; no network call occurs here. */
+    private void showWind() {
+        if (renderer == null || state.route == null || state.sampleIndexes == null
+                || state.forecasts == null || state.forecasts.isEmpty()) {
+            return;
+        }
+        long duration = UnitFormatter.ridingDurationSeconds(state.route.distanceMeters,
+                state.route.durationSeconds, settings.ridingSpeedKmh);
+        long departure = departureEpochSeconds();
+        RouteWind outward = RouteWind.analyze(state.route, state.sampleIndexes,
+                state.forecasts, departure, duration, settings.calmBelowKmh);
+        RouteWind reverse = RouteWind.analyzeReversed(state.route, state.sampleIndexes,
+                state.forecasts, departure, duration, settings.calmBelowKmh);
+        renderer.show(state.route, outward, reverse, settings, duration);
+    }
+
+    private long departureEpochSeconds() {
+        long now = System.currentTimeMillis() / 1000;
+        int checked = departChips.getCheckedChipId();
+        if (checked == R.id.depart_1h) {
+            return now + 3600;
+        }
+        if (checked == R.id.depart_3h) {
+            return now + 3 * 3600;
+        }
+        return now;
+    }
+
+    @Override
+    public void onLocation(GeoPoint point) {
+        originInput.setText(R.string.my_location);
+        originInput.setSelection(originInput.length());
+        state.originCoordinates = point;
+    }
+
+    @Override
+    public void onLocationPermissionAvailable() {
+        enableMyLocationIfAllowed();
+    }
+
+    @Override
+    public void onLocationMessage(String message) {
+        showMessage(message);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void enableMyLocationIfAllowed() {
+        if (map == null) {
+            return;
+        }
+        boolean coarse = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean fine = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (coarse || fine) {
+            try {
+                map.setMyLocationEnabled(true);
+            } catch (SecurityException ignored) {
+                // Permission can be revoked between the check and the SDK call.
+            }
+        }
+    }
+
+    private PlaceSuggestionsController.SearchBounds visibleMapBounds() {
+        if (map == null) {
+            return null;
+        }
+        LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
+        return new PlaceSuggestionsController.SearchBounds(bounds.southwest.latitude,
+                bounds.southwest.longitude, bounds.northeast.latitude,
+                bounds.northeast.longitude);
+    }
+
     private void keepCardsClearOfSystemBars() {
         int margin = Math.round(12 * getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            setMargins(searchCard, margin + bars.left, margin + bars.top, margin + bars.right, 0);
+            setMargins(searchCard, margin + bars.left, margin + bars.top,
+                    margin + bars.right, 0);
             setMargins(summaryCard, margin + bars.left, 0, margin + bars.right,
                     margin + bars.bottom);
             return insets;
@@ -170,212 +386,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         view.setLayoutParams(params);
     }
 
-    // ---- searching ---------------------------------------------------------------
-
-    private void search() {
-        String origin = originInput.getText().toString().trim();
-        String destination = destinationInput.getText().toString().trim();
-        if (origin.isEmpty() || destination.isEmpty()) {
-            showMessage(getString(R.string.error_need_both));
-            return;
-        }
-        if (BuildConfig.MAPS_API_KEY.isEmpty()) {
-            showMessage(getString(R.string.error_no_key));
-            return;
-        }
-        hideKeyboard();
-        setBusy(true);
-
-        background.execute(() -> {
-            try {
-                Route found = new RoutesClient(BuildConfig.MAPS_API_KEY).fetch(origin, destination);
-
-                // Spread the forecast lookups along the route, widening the gap
-                // on a long ride so the request stays a sensible size.
-                double spacing = Math.max(SAMPLE_SPACING_METERS,
-                        found.distanceMeters / MAX_SAMPLES);
-                List<Integer> indexes = GeoMath.sampleIndexes(found.points, spacing);
-                List<GeoPoint> places = new ArrayList<>();
-                for (int index : indexes) {
-                    places.add(found.points.get(index));
-                }
-                List<WindForecast> wind = OpenMeteoClient.fetch(places);
-
-                mainThread.post(() -> {
-                    state.route = found;
-                    state.sampleIndexes = indexes;
-                    state.forecasts = wind;
-                    setBusy(false);
-                    showWind();
-                });
-            } catch (Exception e) {
-                String message = e.getMessage() != null ? e.getMessage() : e.toString();
-                mainThread.post(() -> {
-                    setBusy(false);
-                    showMessage(message);
-                });
-            }
-        });
-    }
-
-    private long departureEpochSeconds() {
-        long now = System.currentTimeMillis() / 1000;
-        int checked = departChips.getCheckedChipId();
-        if (checked == R.id.depart_1h) {
-            return now + 3600;
-        }
-        if (checked == R.id.depart_3h) {
-            return now + 3 * 3600;
-        }
-        return now;
-    }
-
-    // ---- drawing -----------------------------------------------------------------
-
-    /** Colours the route on the map and fills in the summary card. */
-    private void showWind() {
-        if (map == null || state.route == null) {
-            return;
-        }
-        Route route = state.route;
-        RouteWind wind = RouteWind.analyze(route, state.sampleIndexes, state.forecasts,
-                departureEpochSeconds());
-
-        map.clear();
-        List<LatLng> all = new ArrayList<>();
-        for (GeoPoint point : route.points) {
-            all.add(new LatLng(point.lat, point.lng));
-        }
-
-        // A white line under the coloured one, slightly wider, so the route
-        // reads clearly whether it crosses a park, water or a motorway.
-        map.addPolyline(new PolylineOptions().addAll(all)
-                .color(ContextCompat.getColor(this, R.color.route_casing))
-                .width(CASING_WIDTH_PX).jointType(JointType.ROUND)
-                .startCap(new RoundCap()).endCap(new RoundCap()));
-
-        // Neighbouring stretches with the same verdict are drawn as one line.
-        // Each line starts on the last point of the one before, so they join.
-        int runStart = 0;
-        for (int i = 1; i <= wind.stretches.size(); i++) {
-            boolean runEnds = i == wind.stretches.size()
-                    || wind.stretches.get(i).effect != wind.stretches.get(runStart).effect;
-            if (!runEnds) {
-                continue;
-            }
-            RouteWind.Stretch first = wind.stretches.get(runStart);
-            RouteWind.Stretch last = wind.stretches.get(i - 1);
-            map.addPolyline(new PolylineOptions()
-                    .addAll(all.subList(first.fromIndex, last.toIndex + 1))
-                    .color(ContextCompat.getColor(this, colorFor(first.effect)))
-                    .width(ROUTE_WIDTH_PX).jointType(JointType.ROUND)
-                    .startCap(new RoundCap()).endCap(new RoundCap())
-                    .zIndex(1f));
-            runStart = i;
-        }
-
-        map.addMarker(new MarkerOptions().position(all.get(0))
-                .title(getString(R.string.marker_start)));
-        map.addMarker(new MarkerOptions().position(all.get(all.size() - 1))
-                .title(getString(R.string.marker_end)));
-
-        fillSummary(wind);
-        summaryCard.setVisibility(View.VISIBLE);
-
-        // Zoom to fit, once the summary card has its real height, keeping the
-        // route out from under both cards.
-        summaryCard.post(() -> {
-            LatLngBounds.Builder bounds = new LatLngBounds.Builder();
-            for (LatLng point : all) {
-                bounds.include(point);
-            }
-            map.setPadding(0, searchCard.getBottom(), 0,
-                    findViewById(R.id.main).getHeight() - summaryCard.getTop());
-            int edge = Math.round(32 * getResources().getDisplayMetrics().density);
-            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds.build(), edge));
-        });
-    }
-
-    private static int colorFor(WindEffect effect) {
-        switch (effect) {
-            case HEADWIND:
-                return R.color.wind_headwind;
-            case TAILWIND:
-                return R.color.wind_tailwind;
-            case CROSSWIND:
-                return R.color.wind_crosswind;
-            default:
-                return R.color.wind_calm;
-        }
-    }
-
-    private void fillSummary(RouteWind wind) {
-        Route route = state.route;
-        ((TextView) findViewById(R.id.headline)).setText(headlineFor(wind));
-
-        int net = (int) Math.round(wind.averageHeadwindKmh);
-        String push = net > 0 ? getString(R.string.net_headwind, net)
-                : net < 0 ? getString(R.string.net_tailwind, -net)
-                : getString(R.string.net_neutral);
-        ((TextView) findViewById(R.id.details)).setText(getString(R.string.details,
-                getString(R.string.distance_km, route.distanceMeters / 1000.0),
-                formatDuration(route.durationSeconds), push,
-                (int) Math.round(wind.maxGustKmh)));
-
-        setShare(R.id.bar_headwind, R.id.legend_headwind, R.string.legend_headwind,
-                wind.share(WindEffect.HEADWIND));
-        setShare(R.id.bar_crosswind, R.id.legend_crosswind, R.string.legend_crosswind,
-                wind.share(WindEffect.CROSSWIND));
-        setShare(R.id.bar_tailwind, R.id.legend_tailwind, R.string.legend_tailwind,
-                wind.share(WindEffect.TAILWIND));
-        setShare(R.id.bar_calm, R.id.legend_calm, R.string.legend_calm,
-                wind.share(WindEffect.CALM));
-
-        // Google requires its notices to be shown with a cycling route.
-        TextView warnings = findViewById(R.id.warnings);
-        warnings.setText(TextUtils.join("\n", route.warnings));
-        warnings.setVisibility(route.warnings.isEmpty() ? View.GONE : View.VISIBLE);
-    }
-
-    /** One word for the whole ride: whichever wind covers more than half of it. */
-    private String headlineFor(RouteWind wind) {
-        if (wind.share(WindEffect.HEADWIND) > 0.5) {
-            return getString(R.string.headline_headwind);
-        }
-        if (wind.share(WindEffect.TAILWIND) > 0.5) {
-            return getString(R.string.headline_tailwind);
-        }
-        if (wind.share(WindEffect.CROSSWIND) > 0.5) {
-            return getString(R.string.headline_crosswind);
-        }
-        if (wind.share(WindEffect.CALM) > 0.5) {
-            return getString(R.string.headline_calm);
-        }
-        return getString(R.string.headline_mixed);
-    }
-
-    /** Sets one slice of the share bar and its legend label. */
-    private void setShare(int barId, int legendId, int labelRes, double share) {
-        View bar = findViewById(barId);
-        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) bar.getLayoutParams();
-        params.weight = (float) share;
-        bar.setLayoutParams(params);
-        ((TextView) findViewById(legendId)).setText(
-                getString(labelRes, (int) Math.round(share * 100)));
-    }
-
-    private String formatDuration(long seconds) {
-        long minutes = Math.round(seconds / 60.0);
-        return minutes >= 60
-                ? getString(R.string.duration_h_min, minutes / 60, minutes % 60)
-                : getString(R.string.duration_min, minutes);
-    }
-
-    // ---- small helpers -----------------------------------------------------------
-
     private void setBusy(boolean busy) {
+        this.busy = busy;
         progress.setVisibility(busy ? View.VISIBLE : View.GONE);
         goButton.setEnabled(!busy);
+        findViewById(R.id.origin_layout).setEnabled(!busy);
+        findViewById(R.id.destination_layout).setEnabled(!busy);
     }
 
     private void showMessage(String message) {

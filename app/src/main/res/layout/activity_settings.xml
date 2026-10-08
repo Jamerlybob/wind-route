@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settings_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/settings_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back"
+                android:padding="12dp"
+                android:src="@drawable/ic_back" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/settings_title"
+                android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
+        </LinearLayout>
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_distance" />
+        <Spinner android:id="@+id/setting_distance" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_wind_speed" />
+        <Spinner android:id="@+id/setting_wind_speed" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_riding_speed" />
+        <Spinner android:id="@+id/setting_riding_speed" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_theme" />
+        <Spinner android:id="@+id/setting_theme" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_calm_below" />
+        <Spinner android:id="@+id/setting_calm_below" style="@style/Widget.WindRoute.SettingSpinner" />
+    </LinearLayout>
+</ScrollView>

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel;
 
 import java.util.List;
 
+import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.weather.WindForecast;
 
@@ -23,4 +24,7 @@ public class RouteState extends ViewModel {
     /** Which points of the route the forecasts below belong to. */
     List<Integer> sampleIndexes;
     List<WindForecast> forecasts;
+    /** Coordinates stay attached to the special "My location" text through rotation. */
+    GeoPoint originCoordinates;
+    GeoPoint destinationCoordinates;
 }

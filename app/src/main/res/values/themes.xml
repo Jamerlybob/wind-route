@@ -41,4 +41,17 @@
         <item name="android:drawablePadding">6dp</item>
         <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
     </style>
+
+    <style name="Widget.WindRoute.SettingLabel" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">20dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+    </style>
+
+    <style name="Widget.WindRoute.SettingSpinner" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:backgroundTint">?attr/colorPrimary</item>
+    </style>
 </resources>

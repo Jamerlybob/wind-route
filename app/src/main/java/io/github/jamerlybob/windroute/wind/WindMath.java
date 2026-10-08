@@ -75,7 +75,13 @@ public final class WindMath {
 
     public static WindEffect classify(double headingDeg, double windFromDeg,
                                       double windSpeedKmh) {
-        if (windSpeedKmh < CALM_BELOW_KMH) {
+        return classify(headingDeg, windFromDeg, windSpeedKmh, CALM_BELOW_KMH);
+    }
+
+    /** Classifies wind using the calm threshold chosen in settings. */
+    public static WindEffect classify(double headingDeg, double windFromDeg,
+                                      double windSpeedKmh, double calmBelowKmh) {
+        if (windSpeedKmh < calmBelowKmh) {
             return WindEffect.CALM;
         }
         double offNose = Math.abs(relativeAngle(headingDeg, windFromDeg));

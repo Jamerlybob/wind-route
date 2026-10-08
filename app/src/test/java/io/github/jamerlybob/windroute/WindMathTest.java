@@ -108,4 +108,10 @@ public class WindMathTest {
         assertEquals(WindEffect.CALM, WindMath.classify(0, 180, 0));
         assertEquals(WindEffect.HEADWIND, WindMath.classify(0, 0, 5.0));
     }
+
+    @Test
+    public void classify_acceptsAChosenCalmThreshold() {
+        assertEquals(WindEffect.CALM, WindMath.classify(0, 0, 9.9, 10));
+        assertEquals(WindEffect.HEADWIND, WindMath.classify(0, 0, 10, 10));
+    }
 }

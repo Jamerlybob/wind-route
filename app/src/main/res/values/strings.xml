@@ -6,9 +6,16 @@
     <string name="depart_now">Now</string>
     <string name="depart_1h">In 1 h</string>
     <string name="depart_3h">In 3 h</string>
+    <string name="my_location">My location</string>
+    <string name="use_my_location">Use my location</string>
+    <string name="swap_places">Swap start and finish</string>
+    <string name="open_settings">Open settings</string>
 
     <string name="error_need_both">Enter where you are starting and where you are going.</string>
     <string name="error_no_key">No Google Maps key in this build. Add MAPS_API_KEY to local.properties and rebuild.</string>
+    <string name="location_permission_denied">Location was not allowed. You can still type a starting place.</string>
+    <string name="location_unavailable">Your current location is unavailable. You can still type a starting place.</string>
+    <string name="location_needs_refresh">Tap the location icon to refresh your current position.</string>
 
     <string name="headline_headwind">Mostly into the wind</string>
     <string name="headline_tailwind">Wind at your back</string>
@@ -17,10 +24,15 @@
     <string name="headline_mixed">A bit of everything</string>
 
     <!-- distance, ride time, average along-road wind, strongest gust -->
-    <string name="details">%1$s · %2$s · %3$s · gusts to %4$d km/h</string>
-    <string name="net_headwind">%1$d km/h against you</string>
-    <string name="net_tailwind">%1$d km/h helping</string>
+    <string name="details">%1$s · %2$s · %3$s · gusts to %4$s</string>
+    <string name="net_headwind">%1$s against you</string>
+    <string name="net_tailwind">%1$s helping</string>
     <string name="net_neutral">no net push</string>
+    <string name="reverse_comparison">Same road reversed: %1$d%% %2$s. The return route may differ.</string>
+    <string name="effect_headwind">headwind</string>
+    <string name="effect_tailwind">tailwind</string>
+    <string name="effect_crosswind">crosswind</string>
+    <string name="effect_calm">calm</string>
 
     <string name="legend_headwind">Head %1$d%%</string>
     <string name="legend_crosswind">Cross %1$d%%</string>
@@ -32,4 +44,36 @@
     <string name="duration_h_min">%1$d h %2$d min</string>
     <string name="duration_min">%1$d min</string>
     <string name="distance_km">%1$.1f km</string>
+    <string name="distance_miles">%1$.1f mi</string>
+    <string name="speed_kmh">%1$.0f km/h</string>
+    <string name="speed_mph">%1$.0f mph</string>
+    <string name="speed_meters_per_second">%1$.1f m/s</string>
+    <string name="speed_knots">%1$.0f kn</string>
+
+    <string name="cycling_notice">Cycling routes are in beta and might sometimes miss clear bicycling paths.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="back">Back</string>
+    <string name="setting_distance">Distance</string>
+    <string name="setting_wind_speed">Wind speed</string>
+    <string name="setting_riding_speed">Usual riding speed</string>
+    <string name="setting_theme">Theme</string>
+    <string name="setting_calm_below">Calm below</string>
+    <string name="riding_speed_google">Use Google’s estimate</string>
+
+    <string-array name="distance_options">
+        <item>Kilometres (km)</item>
+        <item>Miles (mi)</item>
+    </string-array>
+    <string-array name="wind_speed_options">
+        <item>Kilometres per hour (km/h)</item>
+        <item>Miles per hour (mph)</item>
+        <item>Metres per second (m/s)</item>
+        <item>Knots (kn)</item>
+    </string-array>
+    <string-array name="theme_options">
+        <item>Follow system</item>
+        <item>Light</item>
+        <item>Dark</item>
+    </string-array>
 </resources>
