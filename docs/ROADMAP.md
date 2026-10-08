@@ -16,7 +16,7 @@ before a ride?
 
 ## Milestone 1: something you open every day
 
-- [ ] Dark mode: follows the system, with a dark Google map style to match
+- [x] Dark mode: follows the system, with a dark Google map style to match
 - [ ] A real colour theme and typography (replace default Material purple)
 - [ ] "My location" as the start (location permission, asked properly)
 - [ ] Place suggestions while typing (decide: Places API autocomplete, which is

@@ -1,6 +1,7 @@
 package io.github.jamerlybob.windroute;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -27,6 +29,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
@@ -81,16 +84,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ChipGroup departChips;
 
     // Kept after a search so that changing the departure time can redraw
-    // without asking Google or the weather service again.
-    private Route route;
-    private List<Integer> sampleIndexes;
-    private List<WindForecast> forecasts;
+    // without asking Google or the weather service again. It lives in a
+    // ViewModel so it also survives a switch between light and dark.
+    private RouteState state;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        state = new ViewModelProvider(this).get(RouteState.class);
 
         originInput = findViewById(R.id.origin);
         destinationInput = findViewById(R.id.destination);
@@ -129,6 +132,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
+        // Match the map to the cards. The dark look is a style file of our own
+        // (res/raw/map_style_night.json) rather than the SDK's built-in
+        // setMapColorScheme, because that call is silently ignored on phones
+        // whose Play services still uses the older map renderer.
+        if (isNight()) {
+            map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style_night));
+        }
         showWind();   // in case a route arrived before the map did
     }
 
@@ -145,6 +155,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     margin + bars.bottom);
             return insets;
         });
+    }
+
+    private boolean isNight() {
+        int night = getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
+        return night == Configuration.UI_MODE_NIGHT_YES;
     }
 
     private static void setMargins(View view, int left, int top, int right, int bottom) {
@@ -186,9 +202,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 List<WindForecast> wind = OpenMeteoClient.fetch(places);
 
                 mainThread.post(() -> {
-                    route = found;
-                    sampleIndexes = indexes;
-                    forecasts = wind;
+                    state.route = found;
+                    state.sampleIndexes = indexes;
+                    state.forecasts = wind;
                     setBusy(false);
                     showWind();
                 });
@@ -218,10 +234,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     /** Colours the route on the map and fills in the summary card. */
     private void showWind() {
-        if (map == null || route == null) {
+        if (map == null || state.route == null) {
             return;
         }
-        RouteWind wind = RouteWind.analyze(route, sampleIndexes, forecasts,
+        Route route = state.route;
+        RouteWind wind = RouteWind.analyze(route, state.sampleIndexes, state.forecasts,
                 departureEpochSeconds());
 
         map.clear();
@@ -293,6 +310,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void fillSummary(RouteWind wind) {
+        Route route = state.route;
         ((TextView) findViewById(R.id.headline)).setText(headlineFor(wind));
 
         int net = (int) Math.round(wind.averageHeadwindKmh);
