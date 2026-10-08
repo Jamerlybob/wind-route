@@ -23,6 +23,10 @@ readable enough to learn from.
 - **The Maps key never enters git.** It lives in `local.properties`. CI builds
   without it on purpose. An APK built with the key has the key inside it, so
   never attach one to a public release or issue.
+- **Nothing that costs money.** James decided on 2026-10-08 that he will never
+  pay for this app. Use only free APIs, or paid ones strictly inside their
+  free monthly allowance, and say so before adding any call that is billed
+  per use. No Places autocomplete.
 - **Check API docs, do not rely on memory**, for Google Routes and Open-Meteo.
   Google requires its cycling-route warnings to be shown with the route.
 

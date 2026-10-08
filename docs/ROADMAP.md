@@ -19,8 +19,8 @@ before a ride?
 - [x] Dark mode: follows the system, with a dark Google map style to match
 - [ ] A real colour theme and typography (replace default Material purple)
 - [ ] "My location" as the start (location permission, asked properly)
-- [ ] Place suggestions while typing (decide: Places API autocomplete, which is
-      billed per session, against Android's free Geocoder. Ask James.)
+- [ ] Place suggestions while typing, using Android's free Geocoder (James
+      chose free over Places autocomplete)
 - [ ] Swap start and finish with one tap, and show both directions' wind side
       by side ("ride it the other way: 70% tailwind")
 - [ ] Settings screen: km or miles, km/h or mph or m/s or knots, your usual
@@ -85,7 +85,9 @@ before a ride?
 
 ## Decisions waiting on James
 
-1. Place suggestions: paid Places autocomplete or free Geocoder (Milestone 1).
+1. What to do when the Google Cloud free trial ends: upgrade the billing
+   account and cap the quotas so the bill stays at zero, or move off Google
+   to OpenStreetMap. See `STATE.md`.
 2. App name. WindRoute is a working title.
 3. Whether the app stays personal (non-commercial Open-Meteo is fine) or goes
    on the Play Store (needs Open-Meteo's commercial terms and a locked-down key).

@@ -42,6 +42,28 @@ scheme call. Do not switch back without testing on a legacy-renderer device.
 Before building Milestone 3 (bikepacking), finish the research gap noted at the
 bottom of `docs/RESEARCH.md`.
 
+## Cost: James will not pay for anything
+
+Decided 2026-10-08. Place suggestions will use the free Geocoder.
+
+Checked against Google's pricing pages the same day:
+
+- The map itself (Maps SDK for Android) is free with no limit.
+- Routes API `computeRoutes` has a free monthly allowance: 10,000 requests on
+  the Essentials SKU, 1,000 on Enterprise. Our request (BICYCLE, no traffic,
+  no waypoints) should be Essentials. The docs list "two-wheeled vehicle
+  routing" as Enterprise without saying whether that includes bicycles, so
+  confirm which SKU shows up in the Cloud billing report.
+- When the Cloud free trial ends (90 days or $300 of credit), Google does not
+  charge anything, but the billing account closes and the key stops working
+  unless James upgrades it to a paid account. Upgrading does not cost
+  anything by itself; the monthly allowances still apply.
+
+Open decision for James: upgrade and set a Routes API quota of about 30
+requests a day (under 1,000 a month, so it cannot leave the free allowance
+on either SKU), or replace Google with OpenStreetMap, which needs a new map
+library and a different routing service.
+
 ## Not done yet, on purpose
 
 - The fortnightly scheduled build James asked for is not set up. Set it up
