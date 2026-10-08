@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
@@ -14,6 +15,8 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,22 +33,36 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.material.snackbar.Snackbar;
+import androidx.appcompat.widget.PopupMenu;
+import androidx.appcompat.app.AlertDialog;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.github.jamerlybob.windroute.elevation.ElevationClient;
 import io.github.jamerlybob.windroute.elevation.ElevationProfile;
+import io.github.jamerlybob.windroute.gpx.GpxParser;
+import io.github.jamerlybob.windroute.gpx.GpxWriter;
+import io.github.jamerlybob.windroute.gpx.RouteThinner;
+import io.github.jamerlybob.windroute.poi.OverpassClient;
+import io.github.jamerlybob.windroute.poi.Poi;
+import io.github.jamerlybob.windroute.poi.PoiAlongRoute;
+import io.github.jamerlybob.windroute.poi.PoiKind;
 import io.github.jamerlybob.windroute.route.GeoPoint;
+import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.route.RouteWaypoint;
 import io.github.jamerlybob.windroute.route.RoutesClient;
 import io.github.jamerlybob.windroute.settings.Settings;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
 import io.github.jamerlybob.windroute.units.UnitFormatter;
+import io.github.jamerlybob.windroute.trip.TripStore;
 
 /** Wires the route form, retained data, background loaders and screen controllers. */
 public final class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -71,6 +88,10 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     private RideSheetController sheetController;
     private int searchGeneration;
     private boolean busy;
+    private final ActivityResultLauncher<String[]> importGpx = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(), this::importGpx);
+    private final ActivityResultLauncher<String> exportGpx = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/gpx+xml"), this::exportGpx);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +100,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         setContentView(R.layout.activity_main);
         state = new ViewModelProvider(this).get(RouteState.class);
         routeStore = new RouteStore(this);
+        state.exportWaypoints = routeStore.exportWaypoints();
         settings = SettingsStore.load(this);
         bindViews();
         searchController = new SearchCardController(this);
@@ -99,6 +121,14 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             mapFragment.getMapAsync(this);
         }
         restoreLastRouteIfNeeded();
+        long tripDeparture = getIntent().getLongExtra("trip_departure", 0);
+        if (tripDeparture > 0) state.departureEpochSeconds = tripDeparture;
+        if (Intent.ACTION_VIEW.equals(getIntent().getAction()) && getIntent().getData() != null) {
+            importGpx(getIntent().getData());
+        } else if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
+            Uri shared = getIntent().getParcelableExtra(Intent.EXTRA_STREAM);
+            if (shared != null) importGpx(shared);
+        }
     }
 
     private void bindViews() {
@@ -123,10 +153,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         originLayout.setEndIconOnClickListener(v -> currentLocation.requestAfterTap());
         TextInputLayout destinationLayout = findViewById(R.id.destination_layout);
         destinationLayout.setEndIconOnClickListener(v -> swapPlaces());
-        View.OnClickListener openSettings = v ->
-                startActivity(new Intent(this, SettingsActivity.class));
-        findViewById(R.id.settings).setOnClickListener(openSettings);
-        findViewById(R.id.settings_collapsed).setOnClickListener(openSettings);
+        findViewById(R.id.settings).setOnClickListener(this::showMenu);
+        findViewById(R.id.settings_collapsed).setOnClickListener(this::showMenu);
+        findViewById(R.id.find_places).setOnClickListener(v -> findPlaces());
     }
 
     private void wireBack() {
@@ -195,7 +224,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         state.route = saved.route;
         state.departureEpochSeconds = System.currentTimeMillis() / 1000;
         if (saved.elevations != null) {
-            List<GeoPoint> samples = ElevationClient.sampleRoute(saved.route.points);
+            List<GeoPoint> samples = saved.route.source == Route.Source.GPX
+                    ? saved.route.points : ElevationClient.sampleRoute(saved.route.points);
             if (samples.size() == saved.elevations.length) {
                 state.elevation = new ElevationProfile(samples, saved.elevations);
             }
@@ -281,6 +311,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         state.forecasts = weather.forecasts;
         state.elevation = null;
         state.elevationFailed = false;
+        state.exportWaypoints.clear();
+        routeStore.saveExportWaypoints(state.exportWaypoints);
         state.departureEpochSeconds = System.currentTimeMillis() / 1000;
         routeStore.saveRoute(origin, destination, route);
         if (!origin.equals(myLocation)) routeStore.addRecentPlace(origin);
@@ -361,7 +393,17 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         state.originCoordinates = destinationPoint;
         state.destinationCoordinates = originPoint;
         if (state.route != null && state.forecasts != null) {
-            search();
+            // Reversing a known line is a comparison, not permission to spend
+            // another Google Routes request. Free weather is resampled because
+            // its indexes must follow the new point order.
+            state.route = state.route.reversed();
+            state.sampleIndexes = null;
+            state.forecasts = null;
+            state.elevation = null;
+            state.elevationFailed = false;
+            routeStore.saveRoute(destination, origin, state.route);
+            refreshForecast(state.route);
+            fetchElevation(state.route, searchGeneration);
         }
     }
 
@@ -379,8 +421,10 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 System.currentTimeMillis() / 1000);
         sheetController.show(analysis, settings, departurePicker::select,
                 state.elevationLoading, state.elevationFailed);
-        renderer.show(analysis, settings, sheetController.extraDetails(analysis, settings),
+        renderer.show(analysis, settings,
+                sheetController.shortWindCost(analysis.power.differenceMinutes),
                 sheetController.collapsedHeight());
+        renderer.showPlaces(state.places);
         searchController.showRoute(originInput.getText().toString(),
                 destinationInput.getText().toString(), analysis.departureEpochSeconds);
     }
@@ -421,12 +465,30 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     private void keepCardsClearOfSystemBars() {
         int margin = Math.round(12 * getResources().getDisplayMetrics().density);
-        int sheetTop = Math.round(96 * getResources().getDisplayMetrics().density);
+        int collapsedSide = Math.round(16 * getResources().getDisplayMetrics().density);
+        int collapsedTop = Math.round(8 * getResources().getDisplayMetrics().density);
+        int collapsedBottom = Math.round(12 * getResources().getDisplayMetrics().density);
+        int contentBottom = Math.round(32 * getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets gestures = insets.getInsets(WindowInsetsCompat.Type.systemGestures());
+            Insets mandatoryGestures = insets.getInsets(
+                    WindowInsetsCompat.Type.mandatorySystemGestures());
+            int safeBottom = Math.max(bars.bottom,
+                    Math.max(gestures.bottom, mandatoryGestures.bottom));
             setMargins(searchCard, margin + bars.left, margin + bars.top,
                     margin + bars.right, 0);
-            setMargins(summaryCard, bars.left, sheetTop, bars.right, bars.bottom);
+            setMargins(summaryCard, bars.left, 0, bars.right, 0);
+            // BottomSheetBehavior positions the sheet itself and can disregard
+            // its bottom margin. Padding the actual content is what reliably
+            // keeps both resting and scrolled text above gesture navigation.
+            findViewById(R.id.summary_collapsed).setPadding(collapsedSide, collapsedTop,
+                    collapsedSide, collapsedBottom + safeBottom);
+            findViewById(R.id.summary_content).setPadding(collapsedSide, 0,
+                    collapsedSide, contentBottom + safeBottom);
+            // A non-fit-to-contents sheet expands to y=0 unless its offset is
+            // explicit, regardless of the margin used for its resting layout.
+            sheetController.setExpandedOffset(bars.top);
             return insets;
         });
     }
@@ -453,6 +515,228 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     private void showMessage(String message) {
         Snackbar.make(findViewById(R.id.main), message, Snackbar.LENGTH_LONG).show();
+    }
+
+    private void showMenu(View anchor) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 1, 0, R.string.menu_import_gpx);
+        menu.getMenu().add(0, 2, 1, R.string.menu_export_gpx);
+        menu.getMenu().add(0, 3, 2, R.string.menu_plan_trip).setEnabled(state.route != null);
+        menu.getMenu().add(0, 4, 3, R.string.menu_saved_trips);
+        menu.getMenu().add(0, 5, 4, R.string.menu_settings);
+        menu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 1) {
+                importGpx.launch(new String[]{"application/gpx+xml", "application/octet-stream",
+                        "text/xml", "application/xml"});
+            } else if (item.getItemId() == 2) {
+                if (state.route == null) showMessage(getString(R.string.no_route_to_export));
+                else exportGpx.launch(getString(R.string.gpx_export_name));
+            } else if (item.getItemId() == 3) {
+                openTrip(null);
+            } else if (item.getItemId() == 4) {
+                showSavedTrips();
+            } else if (item.getItemId() == 5) {
+                startActivity(new Intent(this, SettingsActivity.class));
+            }
+            return true;
+        });
+        menu.show();
+    }
+
+    private void importGpx(Uri uri) {
+        if (uri == null) return;
+        setBusy(true);
+        int generation = ++searchGeneration;
+        background.execute(() -> {
+            try (java.io.InputStream input = getContentResolver().openInputStream(uri)) {
+                if (input == null) throw new java.io.IOException("Could not open this GPX file.");
+                GpxParser.Result parsed = GpxParser.parse(input);
+                RouteThinner.Result thin = RouteThinner.thin(parsed.points, parsed.elevations, 2000);
+                double[] cumulative = GeoMath.cumulativeMeters(thin.points);
+                double distance = cumulative[cumulative.length - 1];
+                int speed = settings.ridingSpeedKmh > 0 ? settings.ridingSpeedKmh : 18;
+                long duration = Math.round(distance / 1000.0 / speed * 3600.0);
+                Route route = new Route(thin.points, distance, duration, Collections.emptyList(),
+                        Route.Source.GPX);
+                ElevationProfile elevation = elevationFromGpx(thin);
+                mainThread.post(() -> acceptImportedRoute(generation, route, elevation,
+                        parsed.waypoints, settings.ridingSpeedKmh <= 0
+                                && routeStore.shouldExplainDefaultGpxSpeed()));
+            } catch (Exception error) {
+                postFailure(generation, error);
+            }
+        });
+    }
+
+    private static ElevationProfile elevationFromGpx(RouteThinner.Result result) {
+        double[] heights = new double[result.elevations.size()];
+        for (int i = 0; i < heights.length; i++) {
+            heights[i] = result.elevations.get(i);
+            if (!Double.isFinite(heights[i])) return null;
+        }
+        return new ElevationProfile(result.points, heights);
+    }
+
+    private void acceptImportedRoute(int generation, Route route, ElevationProfile elevation,
+                                     List<GpxParser.Waypoint> waypoints, boolean usedDefaultSpeed) {
+        if (generation != searchGeneration || isDestroyed()) return;
+        originInput.setText(R.string.gpx_imported);
+        destinationInput.setText(R.string.gpx_finish);
+        state.route = route;
+        state.elevation = elevation;
+        state.elevationFailed = elevation == null;
+        state.exportWaypoints = new ArrayList<>(waypoints);
+        routeStore.saveExportWaypoints(state.exportWaypoints);
+        state.departureEpochSeconds = System.currentTimeMillis() / 1000;
+        routeStore.saveRoute(getString(R.string.gpx_imported), getString(R.string.gpx_finish), route);
+        if (elevation != null) routeStore.saveElevations(elevation.rawElevationMeters);
+        if (usedDefaultSpeed) showMessage(getString(R.string.gpx_default_speed));
+        refreshForecast(route);
+        if (elevation == null) fetchElevation(route, generation);
+    }
+
+    private void exportGpx(Uri uri) {
+        if (uri == null || state.route == null) return;
+        background.execute(() -> {
+            try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
+                if (output == null) throw new java.io.IOException("Could not create the GPX file.");
+                List<Double> elevations = new ArrayList<>();
+                if (state.elevation != null
+                        && state.elevation.rawElevationMeters.length == state.route.points.size()) {
+                    for (double value : state.elevation.rawElevationMeters) elevations.add(value);
+                }
+                List<GpxParser.Waypoint> waypoints = new ArrayList<>(state.exportWaypoints);
+                RideAnalysis analysis = currentAnalysis();
+                if (analysis != null) {
+                    for (int i = 0; i < analysis.climbs.size(); i++) {
+                        int point = nearestPoint(analysis.route,
+                                analysis.climbs.get(i).startDistanceMeters);
+                        waypoints.add(new GpxParser.Waypoint(analysis.route.points.get(point),
+                                getString(R.string.export_climb, i + 1), null));
+                    }
+                }
+                String xml = GpxWriter.write("WindRoute", state.route.points, elevations, waypoints);
+                output.write(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                mainThread.post(() -> showMessage(getString(R.string.gpx_exported)));
+            } catch (Exception error) {
+                mainThread.post(() -> showMessage(error.getMessage() == null
+                        ? error.toString() : error.getMessage()));
+            }
+        });
+    }
+
+    private static int nearestPoint(Route route, double distance) {
+        double[] cumulative = GeoMath.cumulativeMeters(route.points);
+        int best = 0;
+        for (int i = 1; i < cumulative.length; i++) {
+            if (Math.abs(cumulative[i] - distance) < Math.abs(cumulative[best] - distance)) best = i;
+        }
+        return best;
+    }
+
+    private RideAnalysis currentAnalysis() {
+        if (state.route == null || state.forecasts == null || state.sampleIndexes == null) return null;
+        return RideAnalysis.build(state.route, state.sampleIndexes, state.forecasts,
+                state.departureEpochSeconds, settings, state.elevation,
+                System.currentTimeMillis() / 1000);
+    }
+
+    private void openTrip(String id) {
+        try {
+            if (id == null) {
+                double[] distances = state.elevation == null
+                        ? null : state.elevation.distanceMeters;
+                double[] elevations = state.elevation == null
+                        ? null : state.elevation.rawElevationMeters;
+                new TripStore(this).saveDraft(state.route, distances, elevations);
+            }
+            Intent intent = new Intent(this, TripActivity.class);
+            if (id != null) intent.putExtra("trip_id", id);
+            startActivity(intent);
+        } catch (Exception error) {
+            showMessage(error.getMessage());
+        }
+    }
+
+    private void showSavedTrips() {
+        TripStore store = new TripStore(this);
+        List<TripStore.SavedTrip> trips = store.list();
+        if (trips.isEmpty()) {
+            showMessage(getString(R.string.no_saved_trips));
+            return;
+        }
+        String[] names = new String[trips.size()];
+        for (int i = 0; i < names.length; i++) names[i] = trips.get(i).name;
+        int[] selected = {0};
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(R.string.menu_saved_trips)
+                .setSingleChoiceItems(names, 0, (d, which) -> selected[0] = which)
+                .setPositiveButton(android.R.string.ok,
+                        (d, which) -> openTrip(trips.get(selected[0]).id))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setNeutralButton(R.string.delete_trip, null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                .setOnClickListener(v -> {
+                    store.delete(trips.get(selected[0]).id);
+                    dialog.dismiss();
+                    showSavedTrips();
+                }));
+        dialog.show();
+    }
+
+    private void findPlaces() {
+        if (state.route == null || busy) return;
+        showMessage(getString(R.string.places_busy));
+        background.execute(() -> {
+            try {
+                List<Poi> found = OverpassClient.fetch(state.route.points,
+                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING), 500);
+                List<PoiAlongRoute> located = PoiAlongRoute.locate(state.route.points, found);
+                mainThread.post(() -> showPlaces(located));
+            } catch (Exception error) {
+                mainThread.post(() -> showMessage(error.getMessage() == null
+                        ? error.toString() : error.getMessage()));
+            }
+        });
+    }
+
+    private void showPlaces(List<PoiAlongRoute> places) {
+        state.places = places;
+        android.widget.LinearLayout list = findViewById(R.id.places_list);
+        list.removeAllViews();
+        findViewById(R.id.places_credit).setVisibility(View.VISIBLE);
+        io.github.jamerlybob.windroute.units.UnitText units =
+                new io.github.jamerlybob.windroute.units.UnitText(this, settings);
+        for (PoiAlongRoute located : places) {
+            android.widget.Button row = new com.google.android.material.button.MaterialButton(this);
+            String kind = poiKind(located.poi.kind);
+            String name = located.poi.name == null || located.poi.name.isEmpty()
+                    ? getString(R.string.place_unnamed, kind) : located.poi.name;
+            row.setText(getString(R.string.place_line, name,
+                    units.distance(located.distanceAlongRouteMeters),
+                    units.distance(located.distanceOffRouteMeters)));
+            row.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(name)
+                    .setMessage(kind + (located.poi.openingHours == null ? ""
+                            : "\n" + located.poi.openingHours))
+                    .setPositiveButton(R.string.add_to_export, (dialog, which) -> {
+                        state.exportWaypoints.add(new GpxParser.Waypoint(located.poi.position,
+                                name, null));
+                        routeStore.saveExportWaypoints(state.exportWaypoints);
+                        showMessage(getString(R.string.added_to_export));
+                    }).setNegativeButton(android.R.string.cancel, null).show());
+            list.addView(row);
+        }
+        if (renderer != null) renderer.showPlaces(places);
+    }
+
+    private String poiKind(PoiKind kind) {
+        switch (kind) {
+            case WATER: return getString(R.string.poi_water);
+            case FOOD: return getString(R.string.poi_food);
+            case CAMPING: return getString(R.string.poi_camping);
+            case BIKE_SHOP: return getString(R.string.poi_bike_shop);
+            case TOILETS: return getString(R.string.poi_toilets);
+            default: return getString(R.string.poi_shelter);
+        }
     }
 
     private void hideKeyboard() {

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/trip_root" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <ImageButton android:id="@+id/trip_back" android:layout_width="48dp"
+                android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back" android:padding="12dp" android:src="@drawable/ic_back" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/trip_title"
+                android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
+        </LinearLayout>
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/trip_map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent" android:layout_height="220dp"
+            android:layout_marginBottom="12dp" />
+        <RadioGroup android:id="@+id/split_mode" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="horizontal">
+            <RadioButton android:id="@+id/split_days" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:checked="true" android:text="@string/split_days" />
+            <RadioButton android:id="@+id/split_distance" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="@string/split_distance" />
+        </RadioGroup>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <EditText android:id="@+id/trip_days" android:layout_width="0dp" android:layout_height="48dp"
+                android:layout_weight="1" android:hint="@string/days_hint" android:inputType="number"
+                android:importantForAutofill="no" android:text="@string/default_trip_days" />
+            <EditText android:id="@+id/trip_distance" android:layout_width="0dp" android:layout_height="48dp"
+                android:layout_weight="1" android:hint="@string/distance_day_hint" android:inputType="numberDecimal"
+                android:importantForAutofill="no" android:text="@string/default_trip_distance"
+                android:visibility="gone" />
+        </LinearLayout>
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/count_climbing"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/count_climbing" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton android:id="@+id/trip_start_date"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/trip_start_time"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+        </LinearLayout>
+        <com.google.android.material.button.MaterialButton android:id="@+id/apply_split"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/update_days" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton android:id="@+id/shift_earlier"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_earlier" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/shift_later"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_later" />
+        </LinearLayout>
+        <TextView android:id="@+id/best_trip" style="@style/Widget.WindRoute.SectionBody" />
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/trip_progress" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />
+        <LinearLayout android:id="@+id/trip_days_list" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+        <EditText android:id="@+id/gap_threshold" android:layout_width="match_parent"
+            android:layout_height="48dp" android:hint="@string/gap_threshold_hint"
+            android:importantForAutofill="no" android:inputType="numberDecimal"
+            android:text="@string/default_gap_threshold" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/trip_find_places"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/find_places" />
+        <TextView android:id="@+id/trip_places_credit" style="@style/Widget.WindRoute.SectionBody"
+            android:text="@string/osm_credit" android:visibility="gone" />
+        <LinearLayout android:id="@+id/trip_places_list" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/save_trip"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/save_trip" />
+        <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/map_offline_notice" />
+        <TextView android:id="@+id/forecast_age" style="@style/Widget.WindRoute.SectionBody" />
+    </LinearLayout>
+</ScrollView>

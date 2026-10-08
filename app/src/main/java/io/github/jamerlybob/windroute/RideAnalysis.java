@@ -70,6 +70,8 @@ public final class RideAnalysis {
                 departureEpochSeconds, duration, settings.calmBelowKmh);
         RouteWind reverse = RouteWind.analyzeReversed(route, sampleIndexes, forecasts,
                 departureEpochSeconds, duration, settings.calmBelowKmh);
+        // Weather uses the same arrival time at every sample as wind. Separate
+        // timing could describe rain from one hour beside wind from another.
         RideWeather weather = RideWeather.analyze(route, sampleIndexes, forecasts,
                 departureEpochSeconds);
         long firstHour = firstComparisonEpochSeconds - firstComparisonEpochSeconds % 3600;
@@ -80,6 +82,8 @@ public final class RideAnalysis {
         List<ClimbDetector.Climb> climbs = elevation == null
                 ? Collections.emptyList() : ClimbDetector.detect(elevation);
         List<ClimbWind> climbWinds = new ArrayList<>();
+        // Preserve list order: the screen pairs climb i with climb-wind i when
+        // colouring the profile and building its text list.
         for (ClimbDetector.Climb climb : climbs) {
             climbWinds.add(ClimbWind.analyze(climb, wind));
         }

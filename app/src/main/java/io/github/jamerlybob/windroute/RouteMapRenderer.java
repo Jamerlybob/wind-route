@@ -15,6 +15,7 @@ import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
@@ -27,12 +28,16 @@ import java.util.Date;
 import java.util.List;
 
 import io.github.jamerlybob.windroute.elevation.ElevationProfile;
+import io.github.jamerlybob.windroute.elevation.ClimbWind;
 import io.github.jamerlybob.windroute.route.CyclingWarnings;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
+import io.github.jamerlybob.windroute.poi.PoiAlongRoute;
+import io.github.jamerlybob.windroute.poi.PoiKind;
 import io.github.jamerlybob.windroute.settings.Settings;
 import io.github.jamerlybob.windroute.units.UnitText;
+import io.github.jamerlybob.windroute.units.UnitFormatter;
 import io.github.jamerlybob.windroute.wind.DirectionComparison;
 import io.github.jamerlybob.windroute.wind.GustWarnings;
 import io.github.jamerlybob.windroute.wind.RouteWind;
@@ -64,7 +69,7 @@ public final class RouteMapRenderer {
                 .setVisibility(View.GONE));
     }
 
-    public void show(RideAnalysis analysis, Settings settings, String extraDetails,
+    public void show(RideAnalysis analysis, Settings settings, String windCost,
                      int collapsedSheetHeight) {
         this.analysis = analysis;
         this.settings = settings;
@@ -74,6 +79,8 @@ public final class RouteMapRenderer {
         for (GeoPoint point : route.points) {
             all.add(new LatLng(point.lat, point.lng));
         }
+        // The neutral, wider casing stays below every coloured segment. It
+        // separates the route from similarly coloured roads on the base map.
         map.addPolyline(new PolylineOptions().addAll(all)
                 .color(ContextCompat.getColor(activity, R.color.route_casing))
                 .width(CASING_WIDTH_PX).jointType(JointType.ROUND)
@@ -85,8 +92,7 @@ public final class RouteMapRenderer {
                 .title(activity.getString(R.string.marker_start)));
         map.addMarker(new MarkerOptions().position(all.get(all.size() - 1))
                 .title(activity.getString(R.string.marker_end)));
-        fillSummary(route, analysis.wind, analysis.reverseWind, settings,
-                route.durationSeconds, extraDetails);
+        fillSummary(analysis, settings, route.durationSeconds, windCost);
         summaryCard.setVisibility(View.VISIBLE);
         if (lastFittedPoints != route.points) {
             lastFittedPoints = route.points;
@@ -96,8 +102,30 @@ public final class RouteMapRenderer {
         }
     }
 
+    /** Adds small, kind-coloured OSM markers after the route redraw clears the map. */
+    public void showPlaces(List<PoiAlongRoute> places) {
+        for (PoiAlongRoute place : places) {
+            float hue = place.poi.kind == PoiKind.WATER ? BitmapDescriptorFactory.HUE_AZURE
+                    : place.poi.kind == PoiKind.FOOD ? BitmapDescriptorFactory.HUE_ORANGE
+                    : place.poi.kind == PoiKind.CAMPING ? BitmapDescriptorFactory.HUE_GREEN
+                    : BitmapDescriptorFactory.HUE_VIOLET;
+            String kind = poiKind(place.poi.kind);
+            String title = place.poi.name == null || place.poi.name.isEmpty()
+                    ? activity.getString(R.string.place_unnamed, kind) : place.poi.name;
+            String snippet = place.poi.openingHours == null ? kind
+                    : activity.getString(R.string.place_marker_details,
+                            kind, place.poi.openingHours);
+            map.addMarker(new MarkerOptions()
+                    .position(new LatLng(place.poi.position.lat, place.poi.position.lng))
+                    .title(title).snippet(snippet)
+                    .icon(BitmapDescriptorFactory.defaultMarker(hue)));
+        }
+    }
+
     private void drawWindRuns(List<LatLng> all, RouteWind wind) {
         int runStart = 0;
+        // Consecutive stretches with one verdict become one visible polyline.
+        // Fewer overlays make panning smoother on a long imported GPX track.
         for (int i = 1; i <= wind.stretches.size(); i++) {
             boolean runEnds = i == wind.stretches.size()
                     || wind.stretches.get(i).effect != wind.stretches.get(runStart).effect;
@@ -188,8 +216,11 @@ public final class RouteMapRenderer {
         activity.findViewById(R.id.stretch_card).setVisibility(View.VISIBLE);
     }
 
-    private void fillSummary(Route route, RouteWind wind, RouteWind reverse,
-                             Settings settings, long durationSeconds, String extraDetails) {
+    private void fillSummary(RideAnalysis analysis, Settings settings,
+                             long durationSeconds, String windCost) {
+        Route route = analysis.route;
+        RouteWind wind = analysis.wind;
+        RouteWind reverse = analysis.reverseWind;
         UnitText units = new UnitText(activity, settings);
         ((TextView) activity.findViewById(R.id.headline)).setText(headlineFor(wind));
         String push = wind.averageHeadwindKmh > 0.5
@@ -199,10 +230,31 @@ public final class RouteMapRenderer {
                         ? activity.getString(R.string.net_tailwind,
                                 units.windSpeed(Math.abs(wind.averageHeadwindKmh)))
                         : activity.getString(R.string.net_neutral);
-        String base = activity.getString(R.string.details, units.distance(route.distanceMeters),
-                formatDuration(durationSeconds), push, units.windSpeed(wind.maxGustKmh));
-        ((TextView) activity.findViewById(R.id.details)).setText(
-                activity.getString(R.string.details_with_extras, base, extraDetails));
+        String ascent = "";
+        if (analysis.elevation != null) {
+            double value = UnitFormatter.elevation(analysis.elevation.totalAscentMeters,
+                    settings.elevationUnit);
+            String amount = activity.getString(settings.elevationUnit
+                    == Settings.ElevationUnit.FEET ? R.string.ascent_feet
+                    : R.string.ascent_metres, value);
+            ascent = activity.getString(R.string.details_ascent, amount);
+        }
+        ((TextView) activity.findViewById(R.id.details_primary)).setText(
+                activity.getString(R.string.details_primary, units.distance(route.distanceMeters),
+                        formatDuration(durationSeconds), ascent));
+        ((TextView) activity.findViewById(R.id.details_secondary)).setText(
+                activity.getString(R.string.details_secondary, push,
+                        units.windSpeed(wind.maxGustKmh), windCost));
+        int intoWind = 0;
+        for (ClimbWind climb : analysis.climbWinds) {
+            if (climb.isClimbIntoHeadwind) intoWind++;
+        }
+        TextView climbWarning = activity.findViewById(R.id.details_headwind);
+        climbWarning.setVisibility(intoWind == 0 ? View.GONE : View.VISIBLE);
+        if (intoWind > 0) {
+            climbWarning.setText(activity.getResources().getQuantityString(
+                    R.plurals.climbs_into_wind, intoWind, intoWind));
+        }
         setShare(R.id.bar_headwind, R.id.legend_headwind, R.string.legend_headwind,
                 wind.share(WindEffect.HEADWIND));
         setShare(R.id.bar_crosswind, R.id.legend_crosswind, R.string.legend_crosswind,
@@ -221,11 +273,15 @@ public final class RouteMapRenderer {
         } else {
             comparisonView.setVisibility(View.GONE);
         }
-        List<String> notices = CyclingWarnings.combine(
-                activity.getString(R.string.cycling_notice), route.warnings);
         TextView warnings = activity.findViewById(R.id.warnings);
-        warnings.setText(String.join("\n", notices));
-        warnings.setVisibility(View.VISIBLE);
+        if (route.source == Route.Source.GOOGLE) {
+            List<String> notices = CyclingWarnings.combine(
+                    activity.getString(R.string.cycling_notice), route.warnings);
+            warnings.setText(String.join("\n", notices));
+            warnings.setVisibility(View.VISIBLE);
+        } else {
+            warnings.setVisibility(View.GONE);
+        }
     }
 
     private void fitRoute(List<LatLng> points, int collapsedSheetHeight) {
@@ -245,6 +301,8 @@ public final class RouteMapRenderer {
 
     private void updatePadding(int collapsedSheetHeight) {
         int measured = activity.findViewById(R.id.summary_collapsed).getHeight();
+        // Padding changes Google's visible rectangle, keeping the fitted road
+        // out from under both the search card and collapsed details sheet.
         map.setPadding(0, searchCard.getBottom(), 0,
                 Math.max(measured, collapsedSheetHeight));
     }
@@ -287,6 +345,8 @@ public final class RouteMapRenderer {
         View bar = activity.findViewById(barId);
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) bar.getLayoutParams();
         params.weight = (float) share;
+        // LinearLayout divides its fixed width by these weights, so the four
+        // children form a truthful 100% share bar without pixel arithmetic.
         bar.setLayoutParams(params);
         ((TextView) activity.findViewById(legendId)).setText(
                 activity.getString(labelRes, (int) Math.round(share * 100)));
@@ -305,6 +365,17 @@ public final class RouteMapRenderer {
             case TAILWIND: return activity.getString(R.string.effect_tailwind);
             case CROSSWIND: return activity.getString(R.string.effect_crosswind);
             default: return activity.getString(R.string.effect_calm);
+        }
+    }
+
+    private String poiKind(PoiKind kind) {
+        switch (kind) {
+            case WATER: return activity.getString(R.string.poi_water);
+            case FOOD: return activity.getString(R.string.poi_food);
+            case CAMPING: return activity.getString(R.string.poi_camping);
+            case BIKE_SHOP: return activity.getString(R.string.poi_bike_shop);
+            case TOILETS: return activity.getString(R.string.poi_toilets);
+            default: return activity.getString(R.string.poi_shelter);
         }
     }
 

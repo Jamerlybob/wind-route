@@ -57,6 +57,8 @@ public final class ElevationProfileView extends View {
         float right = getWidth() - 8 * density;
         float top = 20 * density;
         float bottom = getHeight() - 28 * density;
+        // Canvas coordinates begin at the top-left: x grows right and y grows
+        // down. These margins leave room for the two sets of axis labels.
         double total = profile.distanceMeters[profile.size() - 1];
         double low = profile.elevationMeters[0];
         double high = low;
@@ -150,10 +152,14 @@ public final class ElevationProfileView extends View {
     }
 
     private static float x(double value, double total, float left, float right) {
+        // Turn progress such as 25 km of 100 km into 0.25, then place that
+        // fraction across the graph's drawable width.
         return left + (float) (total > 0 ? value / total : 0) * (right - left);
     }
 
     private static float y(double value, double low, double range, float top, float bottom) {
+        // Height is normalized in the same way, but subtracted from the bottom
+        // because smaller Canvas y values appear higher on the screen.
         return bottom - (float) ((value - low) / range) * (bottom - top);
     }
 

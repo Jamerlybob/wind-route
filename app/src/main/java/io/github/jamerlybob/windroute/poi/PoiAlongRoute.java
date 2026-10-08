@@ -84,4 +84,19 @@ public final class PoiAlongRoute {
         }
         return Math.max(longest, routeLength - previous);
     }
+
+    /** Largest gap of one kind inside a single day's global route distances. */
+    public static double longestGapBetween(List<PoiAlongRoute> places, PoiKind kind,
+                                           double startMeters, double endMeters) {
+        double longest = 0;
+        double previous = startMeters;
+        for (PoiAlongRoute place : places) {
+            if (place.poi.kind == kind && place.distanceAlongRouteMeters >= startMeters
+                    && place.distanceAlongRouteMeters <= endMeters) {
+                longest = Math.max(longest, place.distanceAlongRouteMeters - previous);
+                previous = place.distanceAlongRouteMeters;
+            }
+        }
+        return Math.max(longest, endMeters - previous);
+    }
 }

@@ -39,7 +39,7 @@ public final class RouteForecastLoader {
         public final List<Integer> sampleIndexes;
         public final List<WindForecast> forecasts;
 
-        Result(List<Integer> sampleIndexes, List<WindForecast> forecasts) {
+        public Result(List<Integer> sampleIndexes, List<WindForecast> forecasts) {
             this.sampleIndexes = sampleIndexes;
             this.forecasts = forecasts;
         }

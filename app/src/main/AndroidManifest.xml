@@ -25,6 +25,9 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />
+        <activity
+            android:name=".TripActivity"
+            android:exported="false" />
 
         <!-- configChanges: rotating the phone would normally destroy and rebuild
              the activity, losing the route on screen. Declaring these tells
@@ -38,6 +41,25 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- GPX MIME types vary between file managers, so the parser still
+                 verifies that the selected content is actually GPX. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/xml" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/gpx+xml" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/xml" />
+                <data android:mimeType="application/xml" />
             </intent-filter>
         </activity>
     </application>

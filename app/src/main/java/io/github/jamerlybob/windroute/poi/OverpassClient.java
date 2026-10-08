@@ -93,7 +93,9 @@ public final class OverpassClient {
             throw new IllegalArgumentException("The corridor must be wider than zero.");
         }
 
-        String around = aroundFilter(evenlySpacedPoints(points), corridorMeters);
+        List<GeoPoint> samples = evenlySpacedPoints(points);
+        int safeCorridor = corridorMeters + (int) Math.ceil(maxDistanceToSample(points, samples));
+        String around = aroundFilter(samples, safeCorridor);
         StringBuilder query = new StringBuilder("[out:json][timeout:25];\n(\n");
         for (PoiKind kind : PoiKind.values()) {
             if (!kinds.contains(kind)) {
@@ -212,6 +214,23 @@ public final class OverpassClient {
                     before.lng + (after.lng - before.lng) * fraction));
         }
         return result;
+    }
+
+    /**
+     * Measures how far thinning moved the query away from the real route.
+     * Adding this to the requested corridor makes every original point remain
+     * covered even when a sparse straight chord cuts across a winding road.
+     */
+    static double maxDistanceToSample(List<GeoPoint> points, List<GeoPoint> samples) {
+        double largest = 0;
+        for (GeoPoint point : points) {
+            double nearest = Double.MAX_VALUE;
+            for (GeoPoint sample : samples) {
+                nearest = Math.min(nearest, GeoMath.distanceMeters(point, sample));
+            }
+            largest = Math.max(largest, nearest);
+        }
+        return largest;
     }
 
     private static String readAll(InputStream in) throws IOException {

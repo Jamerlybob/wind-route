@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.List;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.route.RouteJson;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
+import io.github.jamerlybob.windroute.gpx.GpxParser;
+import io.github.jamerlybob.windroute.route.GeoPoint;
 
 /**
  * Persists the last drawn route and the small recent-place list. This storage
@@ -24,6 +27,8 @@ public final class RouteStore {
     private static final String LAST_ROUTE = "last_route";
     private static final String LAST_ELEVATIONS = "last_elevations";
     private static final String RECENT_PLACES = "recent_places";
+    private static final String EXPORT_WAYPOINTS = "export_waypoints";
+    private static final String EXPLAINED_GPX_SPEED = "explained_gpx_speed";
     private static final int MAX_RECENT = 8;
 
     private final SharedPreferences preferences;
@@ -116,6 +121,49 @@ public final class RouteStore {
             stored.put(places.get(i));
         }
         preferences.edit().putString(RECENT_PLACES, stored.toString()).apply();
+    }
+
+    public List<GpxParser.Waypoint> exportWaypoints() {
+        List<GpxParser.Waypoint> result = new ArrayList<>();
+        try {
+            JSONArray stored = new JSONArray(preferences.getString(EXPORT_WAYPOINTS, "[]"));
+            for (int i = 0; i < stored.length(); i++) {
+                JSONObject point = stored.getJSONObject(i);
+                result.add(new GpxParser.Waypoint(new GeoPoint(point.getDouble("lat"),
+                        point.getDouble("lng")), point.optString("name", ""),
+                        point.isNull("elevation") ? null : point.getDouble("elevation")));
+            }
+        } catch (JSONException | RuntimeException ignored) {
+            // A damaged optional export list must not prevent opening the route.
+        }
+        return result;
+    }
+
+    public void saveExportWaypoints(List<GpxParser.Waypoint> waypoints) {
+        JSONArray stored = new JSONArray();
+        for (GpxParser.Waypoint waypoint : waypoints) {
+            try {
+                stored.put(new JSONObject().put("lat", waypoint.point.lat)
+                        .put("lng", waypoint.point.lng).put("name", waypoint.name)
+                        .put("elevation", waypoint.elevationMeters));
+            } catch (JSONException error) {
+                throw new IllegalStateException(error);
+            }
+        }
+        preferences.edit().putString(EXPORT_WAYPOINTS, stored.toString()).apply();
+    }
+
+    public void addExportWaypoint(GpxParser.Waypoint waypoint) {
+        List<GpxParser.Waypoint> waypoints = exportWaypoints();
+        waypoints.add(waypoint);
+        saveExportWaypoints(waypoints);
+    }
+
+    /** Returns true once, so the 18 km/h import fallback is explained without nagging. */
+    public boolean shouldExplainDefaultGpxSpeed() {
+        if (preferences.getBoolean(EXPLAINED_GPX_SPEED, false)) return false;
+        preferences.edit().putBoolean(EXPLAINED_GPX_SPEED, true).apply();
+        return true;
     }
 
     /** The route and its display labels must be restored as one snapshot. */

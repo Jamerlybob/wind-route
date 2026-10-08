@@ -30,6 +30,7 @@ public final class RouteJson {
                     .put("points", points)
                     .put("distanceMeters", route.distanceMeters)
                     .put("durationSeconds", route.durationSeconds)
+                    .put("source", route.source.name())
                     .put("warnings", warnings)
                     .toString();
         } catch (JSONException e) {
@@ -63,6 +64,12 @@ public final class RouteJson {
         if (!Double.isFinite(distance) || distance < 0 || duration < 0) {
             throw new JSONException("A saved route has invalid measurements.");
         }
-        return new Route(points, distance, duration, warnings);
+        Route.Source source;
+        try {
+            source = Route.Source.valueOf(root.optString("source", Route.Source.GOOGLE.name()));
+        } catch (IllegalArgumentException ignored) {
+            source = Route.Source.GOOGLE;
+        }
+        return new Route(points, distance, duration, warnings, source);
     }
 }

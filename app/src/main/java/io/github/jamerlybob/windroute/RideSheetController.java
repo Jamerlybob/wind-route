@@ -8,7 +8,6 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
-import androidx.annotation.NonNull;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 
@@ -47,43 +46,43 @@ public final class RideSheetController {
                 * activity.getResources().getDisplayMetrics().density);
         behavior.setPeekHeight(minimumPeek, false);
         behavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-        View collapsedSpacer = activity.findViewById(R.id.collapsed_spacer);
-        behavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
-            @Override
-            public void onStateChanged(@NonNull View bottomSheet, int newState) {
-                if (newState == BottomSheetBehavior.STATE_COLLAPSED) {
-                    collapsedSpacer.setVisibility(View.VISIBLE);
-                } else if (newState == BottomSheetBehavior.STATE_EXPANDED
-                        || newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
-                    collapsedSpacer.setVisibility(View.GONE);
-                }
-            }
-
-            @Override
-            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-                // The state callback changes layout only at a stable endpoint,
-                // avoiding a jump underneath the rider's dragging finger.
-            }
-        });
         strip = activity.findViewById(R.id.departure_strip);
         profileView = activity.findViewById(R.id.elevation_profile);
-        activity.findViewById(R.id.wind_cost_info).setOnClickListener(v ->
+        activity.findViewById(R.id.wind_cost).setOnClickListener(v ->
                 new AlertDialog.Builder(activity)
                         .setTitle(R.string.wind_cost_info)
                         .setMessage(R.string.wind_cost_assumptions)
                         .setPositiveButton(android.R.string.ok, null)
                         .show());
-        View collapsed = activity.findViewById(R.id.summary_collapsed);
+        LinearLayout collapsed = activity.findViewById(R.id.summary_collapsed);
         collapsed.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
-            // Peek by the measured summary rather than a fixed dp value, so
-            // larger fonts never hide Google's required cycling notice.
-            behavior.setPeekHeight(Math.max(minimumPeek, v.getHeight()), false);
+            // BottomSheetBehavior may measure this container with only the old
+            // peek height available. Summing its measured children avoids that
+            // circular constraint and keeps every visible summary row on-screen.
+            int contentHeight = collapsed.getPaddingTop() + collapsed.getPaddingBottom();
+            for (int i = 0; i < collapsed.getChildCount(); i++) {
+                View child = collapsed.getChildAt(i);
+                if (child.getVisibility() == View.GONE) continue;
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams)
+                        child.getLayoutParams();
+                contentHeight += child.getMeasuredHeight()
+                        + params.topMargin + params.bottomMargin;
+            }
+            int measuredPeek = Math.max(minimumPeek, contentHeight);
+            if (behavior.getPeekHeight() != measuredPeek) {
+                // Material ignores an offset change made while it is laying
+                // out the sheet. The next frame is early enough to look
+                // immediate but late enough for the new offset to take hold.
+                collapsed.post(() -> behavior.setPeekHeight(measuredPeek, false));
+            }
         });
     }
 
     public void show(RideAnalysis analysis, Settings settings,
                      DepartureStripView.Listener departureListener,
                      boolean elevationLoading, boolean elevationFailed) {
+        // Rebuild every section from one immutable snapshot; views never make
+        // independent timing or weather decisions that could disagree.
         UnitText units = new UnitText(activity, settings);
         fillBestTime(analysis, units, departureListener);
         fillWeather(analysis.weather, settings);
@@ -101,6 +100,14 @@ public final class RideSheetController {
         }
         return activity.getResources().getQuantityString(minutes > 0
                 ? R.plurals.wind_adds : R.plurals.wind_saves, (int) rounded, rounded);
+    }
+
+    /** Compact wording keeps the collapsed wind facts on one scan line. */
+    public String shortWindCost(double minutes) {
+        long rounded = Math.round(Math.abs(minutes));
+        if (rounded < 1) return activity.getString(R.string.wind_no_difference_short);
+        return activity.getString(minutes > 0 ? R.string.wind_adds_short
+                : R.string.wind_saves_short, rounded);
     }
 
     public String extraDetails(RideAnalysis analysis, Settings settings) {
@@ -140,6 +147,11 @@ public final class RideSheetController {
 
     public int collapsedHeight() {
         return behavior.getPeekHeight();
+    }
+
+    /** Keeps the fully expanded sheet below edge-to-edge system chrome. */
+    public void setExpandedOffset(int statusBarInset) {
+        behavior.setExpandedOffset(statusBarInset);
     }
 
     private void fillBestTime(RideAnalysis analysis, UnitText units,
@@ -192,9 +204,11 @@ public final class RideSheetController {
         if (Double.isNaN(weather.coldestC) || Double.isNaN(weather.warmestC)) {
             text.append(activity.getString(R.string.weather_unknown_temperature));
         } else {
-            text.append(activity.getString(R.string.weather_temperature,
-                    UnitFormatter.temperature(weather.coldestC, settings.temperatureUnit),
-                    UnitFormatter.temperature(weather.warmestC, settings.temperatureUnit)));
+            double low = UnitFormatter.temperature(weather.coldestC, settings.temperatureUnit);
+            double high = UnitFormatter.temperature(weather.warmestC, settings.temperatureUnit);
+            text.append(TemperatureRangeFormatter.format(low, high,
+                    activity.getString(R.string.weather_temperature_single),
+                    activity.getString(R.string.weather_temperature)));
         }
         // Unknown rain is intentionally omitted. A missing forecast field must
         // not be presented to the rider as a confident dry prediction.

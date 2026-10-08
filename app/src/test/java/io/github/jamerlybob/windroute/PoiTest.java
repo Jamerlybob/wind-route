@@ -43,7 +43,7 @@ public class PoiTest {
         assertTrue(query.contains("way[\"amenity\"=\"toilets\"]"));
         assertTrue(query.contains("node[\"amenity\"=\"shelter\"]"));
         assertTrue(query.endsWith("out center;"));
-        assertTrue(query.contains("(around:500,-36.850000,174.760000,-36.860000,174.770000)"));
+        assertTrue(query.contains("-36.850000,174.760000,-36.860000,174.770000)"));
     }
 
     @Test
@@ -155,6 +155,8 @@ public class PoiTest {
                 route, places, PoiKind.FOOD), 0.01);
         assertEquals(routeLength, PoiAlongRoute.longestGapMeters(
                 route, places, PoiKind.CAMPING), 0.01);
+        assertEquals(firstLeg * 0.5, PoiAlongRoute.longestGapBetween(
+                places, PoiKind.WATER, firstLeg, firstLeg * 1.5), 0.01);
     }
 
     private static List<GeoPoint> straightRoute() {

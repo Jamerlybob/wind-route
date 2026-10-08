@@ -6,19 +6,27 @@ import java.util.List;
 
 /** A cycling route as returned by the routing service. */
 public final class Route {
+    public enum Source { GOOGLE, GPX }
     public final List<GeoPoint> points;
     public final double distanceMeters;
     /** Google's own estimate of the riding time, which already allows for hills. */
     public final long durationSeconds;
     /** Notices Google requires apps to show alongside a cycling route. */
     public final List<String> warnings;
+    public final Source source;
 
     public Route(List<GeoPoint> points, double distanceMeters, long durationSeconds,
                  List<String> warnings) {
+        this(points, distanceMeters, durationSeconds, warnings, Source.GOOGLE);
+    }
+
+    public Route(List<GeoPoint> points, double distanceMeters, long durationSeconds,
+                 List<String> warnings, Source source) {
         this.points = points;
         this.distanceMeters = distanceMeters;
         this.durationSeconds = durationSeconds;
         this.warnings = warnings;
+        this.source = source;
     }
 
     /**
@@ -31,7 +39,7 @@ public final class Route {
         List<GeoPoint> reversedPoints = new ArrayList<>(points);
         Collections.reverse(reversedPoints);
         return new Route(reversedPoints, distanceMeters, durationSeconds,
-                new ArrayList<>(warnings));
+                new ArrayList<>(warnings), source);
     }
 
     /**
@@ -42,6 +50,6 @@ public final class Route {
      * feature from quietly falling back to Google's original duration.
      */
     public Route withDuration(long effectiveDurationSeconds) {
-        return new Route(points, distanceMeters, effectiveDurationSeconds, warnings);
+        return new Route(points, distanceMeters, effectiveDurationSeconds, warnings, source);
     }
 }

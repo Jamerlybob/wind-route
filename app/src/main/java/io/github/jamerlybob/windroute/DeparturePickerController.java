@@ -61,6 +61,8 @@ public final class DeparturePickerController {
         selectedEpochSeconds = epochSeconds;
         choose.setText(formatChip(epochSeconds));
         changingChip = true;
+        // Programmatic selection would otherwise reopen the picker through the
+        // ChipGroup listener, so distinguish it from a rider's tap.
         chips.check(R.id.depart_choose);
         changingChip = false;
         listener.onDepartureChanged(epochSeconds);
@@ -93,6 +95,8 @@ public final class DeparturePickerController {
                 .setTitleText(R.string.depart_choose)
                 .build();
         picker.addOnPositiveButtonClickListener(v -> {
+            // The date picker returns UTC midnight as a stable calendar date.
+            // Rebuild it in the phone's zone before adding the chosen clock time.
             Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
             utc.setTimeInMillis(utcDay);
             Calendar local = Calendar.getInstance();

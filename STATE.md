@@ -13,11 +13,12 @@ with recent places, swap and the other direction's wind, a settings screen
 (units, riding speed, theme, calm threshold), the last route restored on a
 cold start with no Routes call, Google's cycling notice always shown.
 
-In the code with tests but NOT on screen yet:
+Also on screen since 2026-10-09 (118 unit tests pass): Milestones 2 and 3
+(see below) and Milestone 5: GPX import and export, "open with" for .gpx
+files, a trip screen that splits a route into days with each day forecast
+for its own date, shift the trip a day, sunrise and sunset, saved trips.
 
-- `gpx/` parser and writer, `trip/DaySplitter`, `nav/RouteProgress`
-- `poi/` water, food, camping and bike shops from Overpass
-- A new launcher icon (not yet looked at on a device)
+In the code but NOT on screen yet: `nav/RouteProgress` for Milestone 4.
 
 ## How the work is being done
 
@@ -33,24 +34,23 @@ two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-Milestones 2 and 3 are on screen (2026-10-09, run on the emulator): bottom
-sheet, collapsing search line, departure date and time picker, best time
-strip, weather on the ride, wind cost in minutes, gust warnings, elevation
-profile coloured by wind, climbs and climbs into the wind, tap a stretch.
+One Codex run each at medium effort, reviewed and run on the emulator after:
 
-In order, one Codex run each at medium effort, reviewed and run on the
-emulator in between:
+1. `docs/specs/M5-polish.md` (places lookup was not seen working)
+2. `docs/specs/M4-riding.md` (audio and real GPS need James's phone)
 
-1. `docs/specs/M2-M3-polish.md` (small; includes the unfinished comment pass)
-2. `docs/specs/M5-trips-screen.md`
-3. `docs/specs/M4-riding.md` (audio and real GPS need James's phone)
+The laptop ran out of memory on 2026-10-09 with the emulator, Codex and
+Gradle all running; Claude Code killed the Codex run. `codex exec resume
+<session id>` picked it up again. Run one Gradle build at a time.
 
 ## Known gaps
+
+- Gust warnings have not been seen on screen: every test forecast was calm.
+- The places lookup showed nothing on the emulator; see `M5-polish.md`.
 
 - Geocoder suggestions could not be confirmed on the emulator: its Geocoder
   logs "forward geocoding network failure". Recent places do appear in the
   dropdown. Needs a check on James's phone.
-- Focusing an empty field does not list recent places; typing does.
 - "My location" has only been tried with the emulator's fake position.
 - With approximate-only permission the start can be a couple of km out.
 - `GpxParser` hardening is best-effort on Android's XML parser and has only

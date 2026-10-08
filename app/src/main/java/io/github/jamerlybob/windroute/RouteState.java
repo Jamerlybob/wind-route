@@ -8,6 +8,9 @@ import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.elevation.ElevationProfile;
 import io.github.jamerlybob.windroute.weather.WindForecast;
+import io.github.jamerlybob.windroute.gpx.GpxParser;
+import io.github.jamerlybob.windroute.poi.PoiAlongRoute;
+import java.util.ArrayList;
 
 /**
  * The last search result, kept somewhere that outlives the Activity.
@@ -32,4 +35,6 @@ public class RouteState extends ViewModel {
     /** Coordinates stay attached to the special "My location" text through rotation. */
     GeoPoint originCoordinates;
     GeoPoint destinationCoordinates;
+    List<GpxParser.Waypoint> exportWaypoints = new ArrayList<>();
+    List<PoiAlongRoute> places = new ArrayList<>();
 }

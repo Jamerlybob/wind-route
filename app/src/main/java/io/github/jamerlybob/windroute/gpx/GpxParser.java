@@ -30,7 +30,7 @@ public final class GpxParser {
         public final String name;
         public final Double elevationMeters;
 
-        Waypoint(GeoPoint point, String name, Double elevationMeters) {
+        public Waypoint(GeoPoint point, String name, Double elevationMeters) {
             this.point = point;
             this.name = name;
             this.elevationMeters = elevationMeters;
@@ -82,7 +82,7 @@ public final class GpxParser {
                 addRoutePoints(document.getElementsByTagNameNS("*", "rtept"),
                         points, elevations);
             }
-            if (points.isEmpty()) {
+            if (points.size() < 2) {
                 throw new IOException("This GPX file does not contain a track or route.");
             }
 

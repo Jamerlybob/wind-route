@@ -14,14 +14,21 @@ public final class GpxWriter {
     }
 
     public static String write(String name, Route route) {
-        return write(name, route.points, Collections.<Double>emptyList());
+        return write(name, route.points, Collections.<Double>emptyList(),
+                Collections.<GpxParser.Waypoint>emptyList());
     }
 
     public static String write(String name, List<GeoPoint> points) {
-        return write(name, points, Collections.<Double>emptyList());
+        return write(name, points, Collections.<Double>emptyList(),
+                Collections.<GpxParser.Waypoint>emptyList());
     }
 
     public static String write(String name, List<GeoPoint> points, List<Double> elevations) {
+        return write(name, points, elevations, Collections.<GpxParser.Waypoint>emptyList());
+    }
+
+    public static String write(String name, List<GeoPoint> points, List<Double> elevations,
+                               List<GpxParser.Waypoint> waypoints) {
         if (!elevations.isEmpty() && elevations.size() != points.size()) {
             throw new IllegalArgumentException("Each GPX point needs a matching elevation.");
         }
@@ -31,8 +38,16 @@ public final class GpxWriter {
                 .append("xmlns=\"http://www.topografix.com/GPX/1/1\" ")
                 .append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ")
                 .append("xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 ")
-                .append("http://www.topografix.com/GPX/1/1/gpx.xsd\">\n")
-                .append("  <trk>\n")
+                .append("http://www.topografix.com/GPX/1/1/gpx.xsd\">\n");
+        for (GpxParser.Waypoint waypoint : waypoints) {
+            xml.append(String.format(Locale.US, "  <wpt lat=\"%.7f\" lon=\"%.7f\">",
+                    waypoint.point.lat, waypoint.point.lng));
+            if (waypoint.elevationMeters != null && Double.isFinite(waypoint.elevationMeters)) {
+                xml.append(String.format(Locale.US, "<ele>%.1f</ele>", waypoint.elevationMeters));
+            }
+            xml.append("<name>").append(escape(waypoint.name)).append("</name></wpt>\n");
+        }
+        xml.append("  <trk>\n")
                 .append("    <name>").append(escape(name)).append("</name>\n")
                 .append("    <trkseg>\n");
         for (int i = 0; i < points.size(); i++) {

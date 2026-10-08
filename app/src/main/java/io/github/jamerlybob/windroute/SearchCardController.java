@@ -45,6 +45,8 @@ public final class SearchCardController {
     }
 
     public void collapse() {
+        // Before the first route there is no compact sentence to show, so the
+        // form must remain expanded even if a caller asks it to collapse.
         if (!hasRoute) {
             return;
         }
@@ -61,6 +63,8 @@ public final class SearchCardController {
     }
 
     private static String shortPlace(String place) {
+        // Geocoder results put the recognisable place first. Keeping that part
+        // lets both endpoints and the departure fit on one compact line.
         int comma = place.indexOf(',');
         return comma > 0 ? place.substring(0, comma).trim() : place;
     }

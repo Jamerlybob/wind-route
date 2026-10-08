@@ -47,6 +47,13 @@ public class DailyUseLogicTest {
         assertEquals(route.points.get(1).lng, restored.points.get(1).lng, 0);
     }
 
+    @Test
+    public void routeJsonPreservesImportedSource() throws JSONException {
+        Route imported = new Route(Arrays.asList(new GeoPoint(1, 2), new GeoPoint(3, 4)),
+                100, 20, Collections.emptyList(), Route.Source.GPX);
+        assertEquals(Route.Source.GPX, RouteJson.read(RouteJson.write(imported)).source);
+    }
+
     @Test(expected = JSONException.class)
     public void unreadableSavedRouteIsRejected() throws JSONException {
         RouteJson.read("{\"points\":[]}");

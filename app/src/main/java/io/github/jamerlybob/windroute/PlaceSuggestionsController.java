@@ -120,7 +120,9 @@ public final class PlaceSuggestionsController {
             });
             view.setOnFocusChangeListener((ignored, hasFocus) -> {
                 if (hasFocus && view.getText().length() == 0) {
-                    show(Field.this, store.recentPlaces(), "");
+                    // The popup can open only after the focus event has finished
+                    // updating the text field's window state.
+                    view.post(() -> show(Field.this, store.recentPlaces(), ""));
                 }
             });
             view.setOnClickListener(v -> {

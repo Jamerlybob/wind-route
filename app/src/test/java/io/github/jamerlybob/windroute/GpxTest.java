@@ -11,6 +11,7 @@ import java.util.Arrays;
 
 import io.github.jamerlybob.windroute.gpx.GpxParser;
 import io.github.jamerlybob.windroute.gpx.GpxWriter;
+import io.github.jamerlybob.windroute.gpx.RouteThinner;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 
 /** GPX 1.0/1.1 import, safe XML handling and portable export. */
@@ -70,5 +71,27 @@ public class GpxTest {
         IOException error = assertThrows(IOException.class,
                 () -> GpxParser.parse("<gpx><wpt lat=\"0\" lon=\"0\"/></gpx>"));
         assertTrue(error.getMessage().contains("track or route"));
+    }
+
+    @Test
+    public void thinningKeepsEndsBendsAndTheirElevations() {
+        java.util.List<GeoPoint> points = new java.util.ArrayList<>();
+        java.util.List<Double> elevations = new java.util.ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            points.add(new GeoPoint(i < 50 ? 0 : 0.01, i * 0.001));
+            elevations.add((double) i);
+        }
+        RouteThinner.Result result = RouteThinner.thin(points, elevations, 10);
+        assertTrue(result.points.size() <= 10);
+        assertEquals(points.get(0), result.points.get(0));
+        assertEquals(points.get(99), result.points.get(result.points.size() - 1));
+        boolean keptBend = false;
+        for (GeoPoint point : result.points) {
+            if (point.lat == 0.01) keptBend = true;
+        }
+        assertTrue(keptBend);
+        for (int i = 0; i < result.points.size(); i++) {
+            assertEquals(points.indexOf(result.points.get(i)), result.elevations.get(i), 0);
+        }
     }
 }

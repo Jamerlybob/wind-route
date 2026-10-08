@@ -57,21 +57,34 @@ public final class DepartureStripView extends View {
         float left = 4 * density;
         float right = getWidth() - 4 * density;
         float labelTop = getHeight() - 28 * density;
-        float centre = (labelTop + 10 * density) / 2f;
-        float halfHeight = Math.max(1, centre - 18 * density);
+        // One equal horizontal slot belongs to each departure. Wind affects
+        // bar height only, never the hour's position.
         float slot = (right - left) / entries.size();
 
-        // Every bar grows away from the same centre line. Dividing by the
-        // largest net wind preserves relative size while using the available
-        // height on calm and windy days alike.
-        double largest = 1;
+        double largestHeadwind = 0;
+        double largestTailwind = 0;
         int best = 0;
         for (int i = 0; i < entries.size(); i++) {
-            largest = Math.max(largest, Math.abs(entries.get(i).averageHeadwindKmh));
+            double wind = entries.get(i).averageHeadwindKmh;
+            largestHeadwind = Math.max(largestHeadwind, wind);
+            largestTailwind = Math.max(largestTailwind, -wind);
             if (entries.get(i).score < entries.get(best).score) {
                 best = i;
             }
         }
+        float graphTop = 16 * density;
+        float graphBottom = labelTop - 8 * density;
+        float graphHeight = Math.max(2, graphBottom - graphTop);
+        float minimumSide = Math.min(16 * density, graphHeight / 2f);
+        double combined = largestHeadwind + largestTailwind;
+        // Each side gets a small guaranteed area so the zero line remains
+        // visible. The rest is divided in the same ratio as the day's largest
+        // headwind and tailwind, avoiding a blank half on one-sided days.
+        float flexible = Math.max(0, graphHeight - 2 * minimumSide);
+        float tailwindRoom = minimumSide + (combined == 0 ? flexible / 2f
+                : (float) (flexible * largestTailwind / combined));
+        float headwindRoom = graphHeight - tailwindRoom;
+        float centre = graphTop + tailwindRoom;
         paint.setStrokeWidth(density);
         paint.setColor(resolve(android.R.attr.textColorSecondary));
         canvas.drawLine(left, centre, right, centre, paint);
@@ -80,10 +93,15 @@ public final class DepartureStripView extends View {
             DepartureScorer.Entry entry = entries.get(i);
             float x0 = left + i * slot + 1.5f * density;
             float x1 = left + (i + 1) * slot - 1.5f * density;
-            float height = (float) (Math.abs(entry.averageHeadwindKmh) / largest * halfHeight);
             boolean tailwind = entry.averageHeadwindKmh < 0;
+            double largestOnSide = tailwind ? largestTailwind : largestHeadwind;
+            float room = tailwind ? tailwindRoom : headwindRoom;
+            float height = largestOnSide <= 0 ? 0
+                    : (float) (Math.abs(entry.averageHeadwindKmh) / largestOnSide * room);
             float y0 = tailwind ? centre - height : centre;
             float y1 = tailwind ? centre : centre + height;
+            // Canvas y grows downward, so tailwind occupies the upper half and
+            // headwind the lower half even though the arithmetic looks reversed.
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(ContextCompat.getColor(getContext(), tailwind
                     ? R.color.wind_tailwind : R.color.wind_headwind));
@@ -126,6 +144,8 @@ public final class DepartureStripView extends View {
             return true;
         }
         int index = (int) (event.getX() / Math.max(1f, getWidth()) * entries.size());
+        // A finger may finish a fraction outside the view; clamping makes that
+        // edge gesture select the first or last hour instead of an invalid one.
         index = Math.max(0, Math.min(entries.size() - 1, index));
         selectedEpochSeconds = entries.get(index).departureEpochSeconds;
         invalidate();
