@@ -38,12 +38,14 @@ public final class GpxParser {
     }
 
     public static final class Result {
+        public final String name;
         public final List<GeoPoint> points;
         /** One entry per point; Double.NaN means the GPX omitted that elevation. */
         public final List<Double> elevations;
         public final List<Waypoint> waypoints;
 
-        Result(List<GeoPoint> points, List<Double> elevations, List<Waypoint> waypoints) {
+        Result(String name, List<GeoPoint> points, List<Double> elevations, List<Waypoint> waypoints) {
+            this.name = name;
             this.points = points;
             this.elevations = elevations;
             this.waypoints = waypoints;
@@ -93,12 +95,21 @@ public final class GpxParser {
                 waypoints.add(new Waypoint(pointOf(element), childText(element, "name"),
                         optionalNumber(element, "ele")));
             }
-            return new Result(points, elevations, waypoints);
+            // Prefer the route-bearing element's name. Metadata names often
+            // describe an exporting app rather than the track the rider chose.
+            Element named = firstElement(document, trackPoints.getLength() > 0 ? "trk" : "rte");
+            String name = named == null ? "" : childText(named, "name");
+            return new Result(name, points, elevations, waypoints);
         } catch (ParserConfigurationException | SAXException e) {
             throw new IOException("Could not read this GPX file.", e);
         } catch (NumberFormatException e) {
             throw new IOException("This GPX file contains an invalid coordinate or elevation.", e);
         }
+    }
+
+    private static Element firstElement(Document document, String name) {
+        NodeList nodes = document.getElementsByTagNameNS("*", name);
+        return nodes.getLength() == 0 ? null : (Element) nodes.item(0);
     }
 
     private static DocumentBuilderFactory secureFactory() {

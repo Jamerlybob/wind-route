@@ -29,7 +29,9 @@ public final class RoutesClient {
      * nothing at all without this header, so it lists exactly what the app uses.
      */
     private static final String FIELD_MASK = "routes.distanceMeters,routes.duration,"
-            + "routes.polyline.encodedPolyline,routes.warnings";
+            + "routes.polyline.encodedPolyline,routes.warnings,"
+            + "routes.legs.steps.distanceMeters,routes.legs.steps.navigationInstruction,"
+            + "routes.legs.steps.startLocation,routes.legs.steps.endLocation";
 
     private final String apiKey;
 
@@ -100,11 +102,41 @@ public final class RoutesClient {
             for (int i = 0; rawWarnings != null && i < rawWarnings.length(); i++) {
                 warnings.add(rawWarnings.getString(i));
             }
+            List<RouteStep> steps = parseSteps(first.optJSONArray("legs"));
             return new Route(points, first.optDouble("distanceMeters", 0),
-                    parseSeconds(first.optString("duration", "0s")), warnings);
+                    parseSeconds(first.optString("duration", "0s")), warnings,
+                    Route.Source.GOOGLE, steps);
         } catch (JSONException e) {
             throw new IOException("Could not read the routing service's reply.", e);
         }
+    }
+
+    private static List<RouteStep> parseSteps(JSONArray legs) throws JSONException {
+        List<RouteStep> result = new ArrayList<>();
+        for (int legIndex = 0; legs != null && legIndex < legs.length(); legIndex++) {
+            JSONArray steps = legs.getJSONObject(legIndex).optJSONArray("steps");
+            for (int i = 0; steps != null && i < steps.length(); i++) {
+                JSONObject raw = steps.getJSONObject(i);
+                JSONObject instruction = raw.optJSONObject("navigationInstruction");
+                GeoPoint start = location(raw.optJSONObject("startLocation"));
+                GeoPoint end = location(raw.optJSONObject("endLocation"));
+                if (start == null || end == null) continue;
+                result.add(new RouteStep(raw.optInt("distanceMeters"),
+                        instruction == null ? "" : instruction.optString("maneuver"),
+                        instruction == null ? "" : instruction.optString("instructions"),
+                        start, end));
+            }
+        }
+        return result;
+    }
+
+    private static GeoPoint location(JSONObject location) {
+        if (location == null) return null;
+        JSONObject latLng = location.optJSONObject("latLng");
+        if (latLng == null) return null;
+        // Protobuf JSON omits scalar defaults. Missing latitude/longitude can
+        // therefore be a real zero coordinate rather than a missing location.
+        return new GeoPoint(latLng.optDouble("latitude", 0), latLng.optDouble("longitude", 0));
     }
 
     /** Durations arrive as text such as "1234s". */

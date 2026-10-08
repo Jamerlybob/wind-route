@@ -30,9 +30,16 @@ public final class ElevationProfileView extends View {
     private List<ClimbDetector.Climb> climbs = new ArrayList<>();
     private List<ClimbWind> climbWinds = new ArrayList<>();
     private Settings settings = Settings.defaults();
+    private double progressMeters = Double.NaN;
 
     public ElevationProfileView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    /** Moves the ride marker without rebuilding the terrain or wind data. */
+    public void setProgressMeters(double progressMeters) {
+        this.progressMeters = progressMeters;
+        invalidate();
     }
 
     public void setData(ElevationProfile profile, RouteWind wind,
@@ -124,6 +131,14 @@ public final class ElevationProfileView extends View {
                 paint.setStyle(Paint.Style.FILL);
                 canvas.drawCircle((start + end) / 2, 8 * density, 4 * density, paint);
             }
+        }
+        if (Double.isFinite(progressMeters)) {
+            float markerX = x(Math.max(0, Math.min(total, progressMeters)), total, left, right);
+            paint.setColor(resolve(com.google.android.material.R.attr.colorOnSurface));
+            paint.setStrokeWidth(2 * density);
+            canvas.drawLine(markerX, top, markerX, bottom, paint);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(markerX, top, 5 * density, paint);
         }
     }
 

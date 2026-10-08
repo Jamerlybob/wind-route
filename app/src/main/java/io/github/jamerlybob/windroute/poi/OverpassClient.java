@@ -68,7 +68,10 @@ public final class OverpassClient {
             if (status >= 400) {
                 throw new IOException("Places service returned HTTP " + status + ".");
             }
-            return parse(responseBody);
+            // Query thinning can widen the server corridor to cover bends.
+            // Remove broad-query extras against the actual line before claiming
+            // that every shown result is within the rider's requested distance.
+            return PoiAlongRoute.withinCorridor(points, parse(responseBody), corridorMeters);
         } finally {
             connection.disconnect();
         }
@@ -118,7 +121,13 @@ public final class OverpassClient {
      */
     public static List<Poi> parse(String json) throws IOException {
         try {
-            JSONArray elements = new JSONObject(json).getJSONArray("elements");
+            JSONObject root = new JSONObject(json);
+            // Overpass may return HTTP 200 with a runtime-error remark and an
+            // empty elements array. That is a failed query, not a dry town.
+            if (!root.optString("remark").isEmpty()) {
+                throw new IOException("The places service could not complete the lookup. Try again later.");
+            }
+            JSONArray elements = root.getJSONArray("elements");
             List<Poi> places = new ArrayList<>();
             for (int i = 0; i < elements.length(); i++) {
                 JSONObject element = elements.getJSONObject(i);

@@ -94,13 +94,31 @@ public final class RouteMapRenderer {
                 .title(activity.getString(R.string.marker_end)));
         fillSummary(analysis, settings, route.durationSeconds, windCost);
         summaryCard.setVisibility(View.VISIBLE);
-        if (lastFittedPoints != route.points) {
+        if (rideMode) {
+            map.setPadding(0, 0, 0, 0);
+        } else if (lastFittedPoints != route.points) {
             lastFittedPoints = route.points;
             fitRoute(all, collapsedSheetHeight);
         } else {
             updatePadding(collapsedSheetHeight);
         }
     }
+
+    private boolean rideMode;
+
+    /** The ride screen owns the camera; route redraws must leave GPS following alone. */
+    public void setRideMode(boolean rideMode) {
+        boolean leaving = this.rideMode && !rideMode;
+        this.rideMode = rideMode;
+        if (rideMode) map.setPadding(0, 0, 0, 0);
+        // Ride mode leaves the camera zoomed in, tilted and turned to the
+        // rider's heading. Go back to the whole route, north up, so the
+        // summary sheet is describing what the map shows.
+        if (leaving && lastFitPoints != null) fitRoute(lastFitPoints, lastFitSheetHeight);
+    }
+
+    private List<LatLng> lastFitPoints;
+    private int lastFitSheetHeight;
 
     /** Adds small, kind-coloured OSM markers after the route redraw clears the map. */
     public void showPlaces(List<PoiAlongRoute> places) {
@@ -237,7 +255,8 @@ public final class RouteMapRenderer {
             String amount = activity.getString(settings.elevationUnit
                     == Settings.ElevationUnit.FEET ? R.string.ascent_feet
                     : R.string.ascent_metres, value);
-            ascent = activity.getString(R.string.details_ascent, amount);
+            // Resource-leading spaces are trimmed by Android; add the separator space here.
+            ascent = " " + activity.getString(R.string.details_ascent, amount);
         }
         ((TextView) activity.findViewById(R.id.details_primary)).setText(
                 activity.getString(R.string.details_primary, units.distance(route.distanceMeters),
@@ -285,8 +304,10 @@ public final class RouteMapRenderer {
     }
 
     private void fitRoute(List<LatLng> points, int collapsedSheetHeight) {
+        lastFitPoints = points;
+        lastFitSheetHeight = collapsedSheetHeight;
         summaryCard.post(() -> {
-            if (activity.isFinishing() || activity.isDestroyed()) {
+            if (rideMode || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
             LatLngBounds.Builder bounds = new LatLngBounds.Builder();

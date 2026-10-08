@@ -54,6 +54,20 @@
         <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_elevation" />
         <Spinner android:id="@+id/setting_elevation" style="@style/Widget.WindRoute.SettingSpinner" />
 
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_cues" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_turns"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_turns" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_climbs"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_climbs" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_wind"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_wind" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_gusts"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_gusts" />
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/cue_how_early" />
+        <Spinner android:id="@+id/cue_ahead" style="@style/Widget.WindRoute.SettingSpinner" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_less_talk"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_less_talk" />
+
         <TextView
             style="@style/Widget.WindRoute.SettingLabel"
             android:text="@string/about_data_title" />

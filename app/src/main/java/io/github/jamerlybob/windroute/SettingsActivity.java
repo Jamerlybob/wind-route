@@ -5,6 +5,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
+import android.widget.CompoundButton;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -34,6 +35,8 @@ public final class SettingsActivity extends AppCompatActivity {
     private Spinner temperature;
     private Spinner elevation;
     private Settings current;
+    private CompoundButton cueTurns, cueClimbs, cueWind, cueGusts, lessTalk;
+    private Spinner cueAhead;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +52,12 @@ public final class SettingsActivity extends AppCompatActivity {
         calmBelow = findViewById(R.id.setting_calm_below);
         temperature = findViewById(R.id.setting_temperature);
         elevation = findViewById(R.id.setting_elevation);
+        cueTurns = findViewById(R.id.cue_turns);
+        cueClimbs = findViewById(R.id.cue_climbs);
+        cueWind = findViewById(R.id.cue_wind);
+        cueGusts = findViewById(R.id.cue_gusts);
+        lessTalk = findViewById(R.id.cue_less_talk);
+        cueAhead = findViewById(R.id.cue_ahead);
 
         keepContentClearOfSystemBars();
         findViewById(R.id.settings_back).setOnClickListener(v -> finish());
@@ -80,6 +89,8 @@ public final class SettingsActivity extends AppCompatActivity {
                 R.array.temperature_options)));
         setChoices(elevation, Arrays.asList(getResources().getStringArray(
                 R.array.elevation_options)));
+        setChoices(cueAhead, Arrays.asList(getResources().getStringArray(
+                R.array.cue_ahead_options)));
 
         UnitText units = new UnitText(this, current);
         List<String> ridingChoices = new ArrayList<>();
@@ -112,6 +123,13 @@ public final class SettingsActivity extends AppCompatActivity {
         calmBelow.setSelection(current.calmBelowKmh);
         temperature.setSelection(current.temperatureUnit.ordinal());
         elevation.setSelection(current.elevationUnit.ordinal());
+        cueTurns.setChecked(current.cueTurns);
+        cueClimbs.setChecked(current.cueClimbs);
+        cueWind.setChecked(current.cueWind);
+        cueGusts.setChecked(current.cueGusts);
+        lessTalk.setChecked(current.lessTalk);
+        cueAhead.setSelection(current.cueAheadMeters <= 200 ? 0
+                : current.cueAheadMeters <= 300 ? 1 : 2);
     }
 
     private void listenForChanges() {
@@ -134,12 +152,20 @@ public final class SettingsActivity extends AppCompatActivity {
         calmBelow.setOnItemSelectedListener(listener);
         temperature.setOnItemSelectedListener(listener);
         elevation.setOnItemSelectedListener(listener);
+        cueAhead.setOnItemSelectedListener(listener);
+        CompoundButton.OnCheckedChangeListener checked = (button, value) -> saveSelections();
+        cueTurns.setOnCheckedChangeListener(checked);
+        cueClimbs.setOnCheckedChangeListener(checked);
+        cueWind.setOnCheckedChangeListener(checked);
+        cueGusts.setOnCheckedChangeListener(checked);
+        lessTalk.setOnCheckedChangeListener(checked);
     }
 
     private void saveSelections() {
         int riding = ridingSpeed.getSelectedItemPosition() == 0
                 ? Settings.USE_GOOGLE_RIDING_SPEED
                 : ridingSpeed.getSelectedItemPosition() + 9;
+        int[] aheadChoices = {200, 300, 400};
         Settings changed = new Settings(
                 Settings.DistanceUnit.values()[distance.getSelectedItemPosition()],
                 Settings.WindSpeedUnit.values()[windSpeed.getSelectedItemPosition()],
@@ -147,7 +173,10 @@ public final class SettingsActivity extends AppCompatActivity {
                 Settings.Theme.values()[theme.getSelectedItemPosition()],
                 calmBelow.getSelectedItemPosition(),
                 Settings.TemperatureUnit.values()[temperature.getSelectedItemPosition()],
-                Settings.ElevationUnit.values()[elevation.getSelectedItemPosition()]);
+                Settings.ElevationUnit.values()[elevation.getSelectedItemPosition()],
+                cueTurns.isChecked(), cueClimbs.isChecked(), cueWind.isChecked(),
+                cueGusts.isChecked(), aheadChoices[cueAhead.getSelectedItemPosition()],
+                lessTalk.isChecked());
         if (changed.equals(current)) {
             return;
         }

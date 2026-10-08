@@ -8,6 +8,8 @@ import io.github.jamerlybob.windroute.elevation.ElevationProfile;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
+import io.github.jamerlybob.windroute.route.RouteStep;
+import io.github.jamerlybob.windroute.nav.TurnGuide;
 
 /** Pure route splitting and day slicing used by the trip screen. */
 public final class TripPlanner {
@@ -31,8 +33,18 @@ public final class TripPlanner {
                 day.startPointIndex, day.endPointIndex + 1));
         long duration = route.distanceMeters <= 0 ? 0
                 : Math.round(route.durationSeconds * day.distanceMeters / route.distanceMeters);
+        TurnGuide guide = new TurnGuide(route);
+        double[] cumulative = GeoMath.cumulativeMeters(route.points);
+        List<RouteStep> steps = new ArrayList<>();
+        for (int i = 0; i < guide.steps.size(); i++) {
+            double along = guide.starts.get(i);
+            if (along >= cumulative[day.startPointIndex]
+                    && along < cumulative[day.endPointIndex]) steps.add(guide.steps.get(i));
+        }
+        // Slicing a Google route does not remove its required warnings. GPX
+        // remains step-free; only Google's original instructions are retained.
         return new Route(points, day.distanceMeters, duration,
-                Collections.emptyList(), route.source);
+                route.warnings, route.source, steps);
     }
 
     public static double[] boundaries(List<DaySplitter.Day> days) {

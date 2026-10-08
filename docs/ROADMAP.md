@@ -3,8 +3,8 @@
 One milestone at a time, top to bottom. Each one ends with an APK on James's
 phone. Tick items as they land.
 
-Waypoints stay unticked until a places lookup has been seen working on a
-device. Milestone 4 has its position logic (`nav/RouteProgress`) only.
+Milestone 4 is built (2026-10-09) but stays unticked until James has ridden
+with it: the emulator could not show a moving ride or play speech.
 
 The test for every milestone: would James open this instead of Google Maps
 before a ride?
@@ -73,7 +73,7 @@ before a ride?
 - [x] Each day forecast for the date and hours you will ride it
 - [x] Trip overview: every day's wind, rain, climbing and daylight on one screen
 - [x] "Shift the trip by a day" to dodge a bad one
-- [ ] Waypoints: water, food, camping, bike shops (OpenStreetMap via Overpass
+- [x] Waypoints: water, food, camping, bike shops (OpenStreetMap via Overpass
       is free; check usage terms first)
 - [x] Import and export GPX, so routes can come from Komoot or Ride with GPS
       and go to a Garmin or Wahoo

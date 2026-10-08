@@ -68,7 +68,9 @@ public final class RideSheetController {
                 contentHeight += child.getMeasuredHeight()
                         + params.topMargin + params.bottomMargin;
             }
-            int measuredPeek = Math.max(minimumPeek, contentHeight);
+            // Once measured there is no floor: on GPX the absent Google notice
+            // must remove its space as well as its text.
+            int measuredPeek = Math.max(1, contentHeight);
             if (behavior.getPeekHeight() != measuredPeek) {
                 // Material ignores an offset change made while it is laying
                 // out the sheet. The next frame is early enough to look
@@ -94,20 +96,12 @@ public final class RideSheetController {
     }
 
     public String windCost(double minutes) {
-        long rounded = Math.round(Math.abs(minutes));
-        if (rounded < 1) {
-            return activity.getString(R.string.wind_no_difference);
-        }
-        return activity.getResources().getQuantityString(minutes > 0
-                ? R.plurals.wind_adds : R.plurals.wind_saves, (int) rounded, rounded);
+        return WindCostText.format(activity, minutes, false);
     }
 
     /** Compact wording keeps the collapsed wind facts on one scan line. */
     public String shortWindCost(double minutes) {
-        long rounded = Math.round(Math.abs(minutes));
-        if (rounded < 1) return activity.getString(R.string.wind_no_difference_short);
-        return activity.getString(minutes > 0 ? R.string.wind_adds_short
-                : R.string.wind_saves_short, rounded);
+        return WindCostText.format(activity, minutes, true);
     }
 
     public String extraDetails(RideAnalysis analysis, Settings settings) {
@@ -213,8 +207,9 @@ public final class RideSheetController {
         // Unknown rain is intentionally omitted. A missing forecast field must
         // not be presented to the rider as a confident dry prediction.
         boolean chance = !Double.isNaN(weather.chanceOfAnyRainPercent);
-        boolean amount = !Double.isNaN(weather.wettestRainMm);
-        boolean dry = chance && amount && weather.chanceOfAnyRainPercent < 1
+        boolean amountKnown = !Double.isNaN(weather.wettestRainMm);
+        boolean amount = io.github.jamerlybob.windroute.weather.RainDisplay.showAmount(weather.wettestRainMm);
+        boolean dry = chance && amountKnown && weather.chanceOfAnyRainPercent < 1
                 && weather.wettestRainMm <= 0;
         // The space between sentences is added here, not in strings.xml:
         // Android strips leading spaces from string resources.

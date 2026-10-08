@@ -50,12 +50,21 @@
     <string name="trip_day_title">Day %1$d · %2$s</string>
     <string name="trip_day_summary">%1$s · %2$s up\n%3$s · %4$s\n%5$s · %6$s\nSunrise %7$s · sunset %8$s%9$s</string>
     <string name="trip_rain">%1$.0f%% rain · %2$.1f mm/h</string>
+    <string name="trip_rain_chance">%1$.0f%% rain</string>
+    <string name="places_none">Nothing found within %1$d m of the route.</string>
+    <string name="best_trip_start_reason">Best overall start: %1$s — %2$s</string>
+    <string name="best_trip_dry_reason">low headwind, dry</string>
+    <string name="best_trip_balanced_reason">best wind, rain and gust balance</string>
+    <string name="best_trip_unavailable">No complete trip fits the available forecast.</string>
+    <string name="places_results">Places found along the route: %1$d.</string>
+    <string name="places_error">Places lookup failed. Check your connection or try again later.</string>
+    <string name="trip_day_compact">Day %1$d of %2$d · %3$s</string>
     <string name="trip_dry">No rain expected</string>
     <string name="temperature_range">%1$.0f–%2$.0f°</string>
     <string name="nudge_earlier">−5 km</string>
     <string name="nudge_later">+5 km</string>
     <string name="open_day">Open day</string>
-    <string name="gap_threshold_hint">Flag water/food gaps over km</string>
+    <string name="gap_threshold_hint">Warn when water or food is further apart than, km</string>
     <string name="gap_line">Day %1$d: longest without water %2$s; without food %3$s%4$s</string>
     <string name="gap_warning"> — over your threshold</string>
     <string name="save_trip">Save trip offline</string>
@@ -185,6 +194,34 @@
     <string name="about_data_body">Weather and elevation from Open-Meteo.com. Elevation data from Copernicus DEM GLO-90. Routes and maps from Google. Places © OpenStreetMap contributors, under the ODbL.</string>
     <string name="riding_speed_google">Use Google’s estimate</string>
 
+    <string name="setting_cues">Spoken cues</string>
+    <string name="cue_turns">Turns</string>
+    <string name="cue_climbs">Climbs</string>
+    <string name="cue_wind">Wind changes</string>
+    <string name="cue_gusts">Strong crosswinds</string>
+    <string name="cue_how_early">How early</string>
+    <string name="cue_less_talk">Less talk (only turns and climbs into wind)</string>
+    <string name="start_ride">Start ride</string>
+    <string name="stop_ride">Stop</string>
+    <string name="ride_notification">WindRoute is guiding your ride</string>
+    <string name="ride_channel">Ride guidance</string>
+    <string name="notification_explanation">Allow notifications so guidance and the Stop control remain visible while the screen is off.</string>
+    <string name="precise_location_explanation">Ride guidance needs precise location to keep you on the correct road.</string>
+    <string name="location_open_settings">Open app settings</string>
+    <string name="ride_default_instruction">Follow the route</string>
+    <string name="ride_next_instruction">%1$s · %2$s</string>
+    <string name="ride_stats">%1$s left · %2$s left · %3$s</string>
+    <string name="ride_summary">Ride complete: %1$s in %2$s. %3$s.</string>
+    <string name="ride_wind_unknown">Wind unavailable</string>
+    <string name="ride_headwind">headwind</string><string name="ride_tailwind">tailwind</string>
+    <string name="ride_crosswind">crosswind</string><string name="ride_calm">calm</string>
+    <string name="ride_wind">%1$s %2$s</string>
+    <string name="ride_wind_arrow" translatable="false">↑</string>
+    <string name="off_route">Off route</string>
+    <string name="reroute_from_here">Re-route from here</string>
+    <string name="cue_off_route">Off route</string>
+    <string name="cue_arrived">You have arrived</string>
+
     <string-array name="distance_options">
         <item>Kilometres (km)</item>
         <item>Miles (mi)</item>
@@ -208,4 +245,31 @@
         <item>Metres (m)</item>
         <item>Feet (ft)</item>
     </string-array>
+    <string-array name="cue_ahead_options">
+        <item>200 metres</item>
+        <item>300 metres</item>
+        <item>400 metres</item>
+    </string-array>
+    <!-- CueBuilder consumes these in order; speech wording stays out of Java. -->
+    <string-array name="cue_words">
+        <item>%1$d metres</item><item>%1$.1f miles</item><item>%1$d feet</item>
+        <item>%1$.1f kilometres</item><item>In %1$s, %2$s</item>
+        <item>Climb in %1$s. %2$s at %3$d percent.</item><item>Into a headwind.</item>
+        <item>%1$s for the next %2$s.</item><item>%1$s from here to the finish.</item>
+        <item>Strong crosswind from the %1$s for the next %2$s.</item>
+        <item>left</item><item>right</item><item>%1$s, then %2$s</item>
+        <item>Top of the climb.</item><item>Continue</item>
+        <item>Headwind</item><item>Tailwind</item><item>Crosswind</item>
+        <item>Turn left</item><item>Turn right</item>
+    </string-array>
+    <string-array name="ride_distance_formats">
+        <item>%1$d m</item><item>%1$.1f mi</item><item>%1$d ft</item><item>%1$.1f km</item>
+    </string-array>
+    <string name="wind_adds_duration_short">adds %1$s</string>
+    <string name="wind_saves_duration_short">saves %1$s</string>
+    <string name="wind_adds_duration">The wind adds about %1$s</string>
+    <string name="wind_saves_duration">The wind saves about %1$s</string>
+    <string name="places_heading">%1$s (%2$d)</string>
+    <string name="places_show_all">Show all %1$d</string>
+    <string name="place_facts">%1$s · %2$s along · %3$s off route</string>
 </resources>

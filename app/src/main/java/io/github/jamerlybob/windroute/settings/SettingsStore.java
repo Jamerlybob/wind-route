@@ -20,6 +20,12 @@ public final class SettingsStore {
     private static final String CALM_BELOW = "settings_calm_below";
     private static final String TEMPERATURE = "settings_temperature";
     private static final String ELEVATION = "settings_elevation";
+    private static final String CUE_TURNS = "settings_cue_turns";
+    private static final String CUE_CLIMBS = "settings_cue_climbs";
+    private static final String CUE_WIND = "settings_cue_wind";
+    private static final String CUE_GUSTS = "settings_cue_gusts";
+    private static final String CUE_AHEAD = "settings_cue_ahead";
+    private static final String LESS_TALK = "settings_less_talk";
 
     private SettingsStore() {
     }
@@ -52,7 +58,12 @@ public final class SettingsStore {
         Settings.ElevationUnit elevation = readElevationUnit(
                 values.getString(ELEVATION, defaults.elevationUnit.name()),
                 defaults.elevationUnit);
-        return new Settings(distance, wind, riding, theme, calm, temperature, elevation);
+        int ahead = values.getInt(CUE_AHEAD, 300);
+        if (ahead != 200 && ahead != 300 && ahead != 400) ahead = 300;
+        return new Settings(distance, wind, riding, theme, calm, temperature, elevation,
+                values.getBoolean(CUE_TURNS, true), values.getBoolean(CUE_CLIMBS, true),
+                values.getBoolean(CUE_WIND, true), values.getBoolean(CUE_GUSTS, true),
+                ahead, values.getBoolean(LESS_TALK, false));
     }
 
     public static void save(Context context, Settings settings) {
@@ -65,6 +76,12 @@ public final class SettingsStore {
                 .putInt(CALM_BELOW, settings.calmBelowKmh)
                 .putString(TEMPERATURE, settings.temperatureUnit.name())
                 .putString(ELEVATION, settings.elevationUnit.name())
+                .putBoolean(CUE_TURNS, settings.cueTurns)
+                .putBoolean(CUE_CLIMBS, settings.cueClimbs)
+                .putBoolean(CUE_WIND, settings.cueWind)
+                .putBoolean(CUE_GUSTS, settings.cueGusts)
+                .putInt(CUE_AHEAD, settings.cueAheadMeters)
+                .putBoolean(LESS_TALK, settings.lessTalk)
                 .apply();
     }
 

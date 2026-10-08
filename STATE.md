@@ -18,7 +18,16 @@ Also on screen since 2026-10-09 (118 unit tests pass): Milestones 2 and 3
 files, a trip screen that splits a route into days with each day forecast
 for its own date, shift the trip a day, sunrise and sunset, saved trips.
 
-In the code but NOT on screen yet: `nav/RouteProgress` for Milestone 4.
+Built on 2026-10-09 (143 unit tests pass, lint clean) and only partly
+checked: Milestone 4, riding mode. "Start ride" in the sheet opens a
+heading-up map with the next turn and the distance to it, the rider's place
+on the hills profile, the wind right now, and Stop. Behind it are
+`RideService` (a foreground location service with a notification), spoken
+cues planned in pure Java (`nav/CueBuilder`, `nav/CuePlanner`), off-route
+detection with a re-route only on a tap, and arrival. Seen on the emulator:
+ride mode opening at the start of a route, standing still. NOT seen: the
+ride moving, turns arriving, the off-route banner, arrival, the
+notification. Never heard: any spoken cue.
 
 ## How the work is being done
 
@@ -34,25 +43,29 @@ two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-Codex hit the usage limit again at 08:03 on 2026-10-09, six minutes into
-`docs/specs/M5-polish.md` and `docs/specs/M4-riding.md`. It left uncommitted,
-never-compiled work in the tree: `RideService`, `nav/CueBuilder`,
-`nav/CuePlanner`, `nav/CuePlanFactory`, `route/RouteStep`, and edits to about
-17 files. Do not commit that as it stands.
+1. James installs the build on his phone and rides or walks a short Google
+   route with "Start ride": does it speak, does the banner count down to the
+   turn, does it keep going with the screen off, does Stop in the
+   notification work. Everything in riding mode that moves is unverified
+   until then.
+2. Small polish seen on 2026-10-09 and not done: the places headings are
+   lower case ("water (12)") and unnamed taps read "Unnamed water"; ending a
+   ride should be checked to return the map to the whole route
+   (`RouteMapRenderer.setRideMode`, written by Claude, compiled, not seen).
+3. Check the Routes SKU in the Cloud billing report: the field mask now asks
+   for `routes.legs.steps`, and the docs do not say whether that keeps the
+   request on the cheapest tier.
 
-To carry on (the limit resets at 12:07 on 2026-10-09):
-
-    <newer codex.exe> exec resume 01a11cdf-ba06-74b1-b283-a8181b280ea2       -m gpt-6.1-sol -c model_reasoning_effort=low "carry on and finish both specs"
+The Codex session for this work is `01a11cdf-ba06-74b1-b283-a8181b280ea2`
+(`<newer codex.exe> exec resume <id> -m gpt-6.1-sol -c
+model_reasoning_effort=low "..."`). At low effort the whole of riding mode
+plus two fix passes took about 45 minutes and did not reach the limit.
 
 Two Codex CLIs are installed. `codex` on the PATH is 0.154.0 and only knows
 the 5.6 models. The desktop app's own copy under
 `%LOCALAPPDATA%\OpenAI\Codexin\<hash>\codex.exe` is newer (0.162 on
 2026-10-09) and offers `gpt-6.1-sol`, `gpt-6-sol` and `gpt-6-luna`. The hash
 folder changes when the app updates, so look for it each time.
-
-Then Claude builds, reviews, runs it on the emulator (start it first; it was
-shut down to save memory), commits and sends James the APK. Riding mode's
-audio and real GPS need James's phone.
 
 Codex model and effort: James's `~/.codex/config.toml` default is
 `gpt-5.6-sol` at low effort. Claude ran it at high (three agents at once,
@@ -69,8 +82,16 @@ when it is not in use.
 ## Known gaps
 
 - Gust warnings have not been seen on screen: every test forecast was calm.
-- The places lookup showed nothing on the emulator; see `M5-polish.md`.
-
+- The emulator on this laptop dies (no crash report, the process just goes)
+  in ride mode, a few seconds after the map starts following at close zoom.
+  Zooming in by hand also killed it until Vulkan was turned off
+  (`-feature -Vulkan`), which fixed plain zooming but not ride mode. The
+  tilt, the speech engine and `-no-audio` were each ruled out. The cause was
+  not found, so it is not proven to be the emulator rather than the app:
+  watch for a crash on James's phone.
+- Fake GPS for a ride: `adb emu geo fix` works for one position. For a
+  replay use `adb shell appops set com.android.shell android:mock_location
+  allow` and `cmd location providers add-test-provider gps`.
 - Geocoder suggestions could not be confirmed on the emulator: its Geocoder
   logs "forward geocoding network failure". Recent places do appear in the
   dropdown. Needs a check on James's phone.

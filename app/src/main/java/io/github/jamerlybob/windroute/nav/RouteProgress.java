@@ -45,6 +45,12 @@ public final class RouteProgress {
 
     public static RouteProgress locate(List<GeoPoint> route, GeoPoint position,
                                        double previousDistanceAlongMeters) {
+        return locate(route, position, previousDistanceAlongMeters, HINT_DISTANCE_TOLERANCE_METERS);
+    }
+
+    /** Precise route instructions need a tighter tie tolerance than noisy GPS fixes. */
+    public static RouteProgress locate(List<GeoPoint> route, GeoPoint position,
+                                       double previousDistanceAlongMeters, double hintToleranceMeters) {
         if (route.isEmpty()) {
             throw new IllegalArgumentException("A route needs at least one point.");
         }
@@ -71,7 +77,7 @@ public final class RouteProgress {
             Candidate slightBacktrack = null;
             for (Candidate candidate : candidates) {
                 boolean geometricallyClose = candidate.offMeters
-                        <= nearest.offMeters + HINT_DISTANCE_TOLERANCE_METERS;
+                        <= nearest.offMeters + hintToleranceMeters;
                 if (!geometricallyClose) {
                     continue;
                 }

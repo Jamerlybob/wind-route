@@ -16,7 +16,7 @@ import io.github.jamerlybob.windroute.trip.TripPlanner;
 
 public class TripPlannerTest {
     @Test
-    public void splitsRequestedDaysAndSlicesWithoutGoogleWarnings() {
+    public void splitsRequestedDaysAndRetainsRequiredGoogleWarnings() {
         Route route = new Route(Arrays.asList(new GeoPoint(0, 0), new GeoPoint(0, 0.01),
                 new GeoPoint(0, 0.02), new GeoPoint(0, 0.03)), 3336, 600,
                 Collections.singletonList("warning"));
@@ -24,7 +24,7 @@ public class TripPlannerTest {
         assertEquals(3, days.size());
         Route second = TripPlanner.routeForDay(route, days.get(1));
         assertEquals(2, second.points.size());
-        assertTrue(second.warnings.isEmpty());
+        assertEquals(Collections.singletonList("warning"), second.warnings);
     }
 
     @Test

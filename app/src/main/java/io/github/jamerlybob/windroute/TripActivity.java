@@ -84,6 +84,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     private long fetchedAt;
     private String savedId;
     private GoogleMap tripMap;
+    private int forecastGeneration;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -217,18 +218,21 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void refreshForecasts() {
+        final int generation = ++forecastGeneration;
+        final List<DaySplitter.Day> requestedDays = new ArrayList<>(days);
         findViewById(R.id.trip_progress).setVisibility(View.VISIBLE);
         background.execute(() -> {
             try {
                 List<RouteForecastLoader.Result> loadedForecasts = new ArrayList<>();
                 List<List<DaylightForecast>> loadedDaylight = new ArrayList<>();
-                for (DaySplitter.Day day : days) {
+                for (DaySplitter.Day day : requestedDays) {
                     Route dayRoute = TripPlanner.routeForDay(route, day);
                     loadedForecasts.add(RouteForecastLoader.load(dayRoute));
                     loadedDaylight.add(DaylightClient.fetch(dayRoute.points.get(0)));
                 }
                 fetchedAt = System.currentTimeMillis();
                 main.post(() -> {
+                    if (isDestroyed() || generation != forecastGeneration) return;
                     forecasts.clear();
                     forecasts.addAll(loadedForecasts);
                     daylight.clear();
@@ -239,6 +243,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                 });
             } catch (Exception error) {
                 main.post(() -> {
+                    if (isDestroyed() || generation != forecastGeneration) return;
                     findViewById(R.id.trip_progress).setVisibility(View.GONE);
                     renderDays();
                     message(error.getMessage());
@@ -312,10 +317,12 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                 : getString(R.string.net_neutral);
         String cost = windCost(analysis.power.differenceMinutes);
         String rain = !Double.isNaN(analysis.weather.chanceOfAnyRainPercent)
-                && !Double.isNaN(analysis.weather.wettestRainMm)
                 && analysis.weather.chanceOfAnyRainPercent >= 1
+                ? io.github.jamerlybob.windroute.weather.RainDisplay.showAmount(analysis.weather.wettestRainMm)
                 ? getString(R.string.trip_rain, analysis.weather.chanceOfAnyRainPercent,
-                analysis.weather.wettestRainMm) : getString(R.string.trip_dry);
+                analysis.weather.wettestRainMm)
+                : getString(R.string.trip_rain_chance, analysis.weather.chanceOfAnyRainPercent)
+                : getString(R.string.trip_dry);
         String temperature;
         if (Double.isNaN(analysis.weather.coldestC)
                 || Double.isNaN(analysis.weather.warmestC)) {
@@ -380,8 +387,8 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
 
     private LinearLayout boundaryControls(int boundary) {
         LinearLayout controls = new LinearLayout(this);
-        com.google.android.material.button.MaterialButton minus = button(R.string.nudge_earlier);
-        com.google.android.material.button.MaterialButton plus = button(R.string.nudge_later);
+        com.google.android.material.button.MaterialButton minus = outlinedButton(R.string.nudge_earlier);
+        com.google.android.material.button.MaterialButton plus = outlinedButton(R.string.nudge_later);
         minus.setOnClickListener(v -> nudge(boundary, -5000));
         plus.setOnClickListener(v -> nudge(boundary, 5000));
         controls.addView(minus);
@@ -410,6 +417,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     private void renderBestStart() {
         long bestDay = startDayMillis;
         double bestScore = Double.MAX_VALUE;
+        boolean bestDry = false;
         Calendar today = Calendar.getInstance();
         zeroTime(today);
         for (int offset = 0; offset <= 7; offset++) {
@@ -418,16 +426,34 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
             startDayMillis = candidate;
             double score = 0;
             boolean complete = true;
+            boolean dry = true;
             for (int i = 0; i < days.size(); i++) {
                 RideAnalysis analysis = analysisFor(i);
                 if (analysis == null) { complete = false; break; }
+                dry &= analysis.weather.wettestRainMm < 0.05
+                        && analysis.weather.chanceOfAnyRainPercent < 20;
                 score += analysis.departures.isEmpty() ? 0 : analysis.departures.get(0).score;
             }
             startDayMillis = old;
-            if (complete && score < bestScore) { bestScore = score; bestDay = candidate; }
+            if (complete && score < bestScore) {
+                bestScore = score; bestDay = candidate; bestDry = dry;
+            }
         }
-        ((TextView) findViewById(R.id.best_trip)).setText(getString(R.string.best_trip_start,
-                new SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(new Date(bestDay))));
+        TextView best = findViewById(R.id.best_trip);
+        final long chosenDay = bestDay;
+        if (bestScore == Double.MAX_VALUE) {
+            best.setText(R.string.best_trip_unavailable);
+            best.setOnClickListener(null);
+            return;
+        }
+        best.setText(getString(R.string.best_trip_start_reason,
+                new SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(new Date(bestDay)),
+                getString(bestDry ? R.string.best_trip_dry_reason : R.string.best_trip_balanced_reason)));
+        best.setOnClickListener(v -> {
+            startDayMillis = chosenDay;
+            updateDateButtons();
+            renderDays();
+        });
     }
 
     private void chooseDate() {
@@ -490,7 +516,8 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     private void openDay(int index) {
         Route dayRoute = TripPlanner.routeForDay(route, days.get(index));
         RouteStore routeStore = new RouteStore(this);
-        routeStore.saveRoute(getString(R.string.trip_day_title, index + 1, ""),
+        routeStore.saveRoute(getString(R.string.trip_day_compact, index + 1, days.size(),
+                        new UnitText(this, settings).distance(days.get(index).distanceMeters)),
                 getString(R.string.gpx_finish), dayRoute);
         ElevationProfile dayElevation = elevationFor(days.get(index));
         if (dayElevation != null) routeStore.saveElevations(dayElevation.rawElevationMeters);
@@ -500,21 +527,35 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void findPlaces() {
-        findViewById(R.id.trip_progress).setVisibility(View.VISIBLE);
+        if (!findViewById(R.id.trip_find_places).isEnabled()) return;
+        findViewById(R.id.trip_find_places).setEnabled(false);
+        findViewById(R.id.trip_places_progress).setVisibility(View.VISIBLE);
+        TextView status = findViewById(R.id.trip_places_status);
+        status.setVisibility(View.VISIBLE);
+        status.setText(R.string.places_busy);
         background.execute(() -> {
             try {
                 List<Poi> found = OverpassClient.fetch(route.points,
                         Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING), 500);
-                places = PoiAlongRoute.locate(route.points, found);
+                List<PoiAlongRoute> located = PoiAlongRoute.locate(route.points, found);
                 main.post(() -> {
-                    findViewById(R.id.trip_progress).setVisibility(View.GONE);
+                    if (isDestroyed()) return;
+                    places = located;
+                    findViewById(R.id.trip_places_progress).setVisibility(View.GONE);
+                    findViewById(R.id.trip_find_places).setEnabled(true);
+                    status.setText(places.isEmpty() ? getString(R.string.places_none, 500)
+                            : getString(R.string.places_results, places.size()));
                     findViewById(R.id.trip_places_credit).setVisibility(View.VISIBLE);
                     renderPlaceGaps();
                     drawTripMap();
                 });
             } catch (Exception error) {
-                main.post(() -> { findViewById(R.id.trip_progress).setVisibility(View.GONE);
-                    message(error.getMessage()); });
+                main.post(() -> {
+                    if (isDestroyed()) return;
+                    findViewById(R.id.trip_places_progress).setVisibility(View.GONE);
+                    findViewById(R.id.trip_find_places).setEnabled(true);
+                    status.setText(R.string.places_error);
+                });
             }
         });
     }
@@ -542,15 +583,8 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
             list.addView(row);
             start = end;
         }
-        for (PoiAlongRoute located : places) {
-            com.google.android.material.button.MaterialButton row = button(0);
-            String kind = poiKind(located.poi.kind);
-            String name = located.poi.name == null
-                    ? getString(R.string.place_unnamed, kind) : located.poi.name;
-            row.setText(getString(R.string.place_line, name,
-                    units.distance(located.distanceAlongRouteMeters),
-                    units.distance(located.distanceOffRouteMeters)));
-            row.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(name)
+        PlacesListController.append(this, list, places, settings, (located, name, kind) ->
+                new AlertDialog.Builder(this).setTitle(name)
                     .setMessage(kind + (located.poi.openingHours == null ? ""
                             : "\n" + located.poi.openingHours))
                     .setPositiveButton(R.string.add_to_export, (dialog, which) -> {
@@ -560,8 +594,6 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                         message(getString(R.string.added_to_export));
                     })
                     .setNegativeButton(android.R.string.cancel, null).show());
-            list.addView(row);
-        }
     }
 
     private void saveTrip() {
@@ -637,8 +669,17 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
 
     private com.google.android.material.button.MaterialButton button(int text) {
         com.google.android.material.button.MaterialButton button =
-                new com.google.android.material.button.MaterialButton(this);
+                new com.google.android.material.button.MaterialButton(this, null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle);
         if (text != 0) button.setText(text);
+        return button;
+    }
+
+    private com.google.android.material.button.MaterialButton outlinedButton(int text) {
+        com.google.android.material.button.MaterialButton button =
+                new com.google.android.material.button.MaterialButton(this, null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(text);
         return button;
     }
 
@@ -651,10 +692,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private String windCost(double minutes) {
-        long rounded = Math.round(Math.abs(minutes));
-        if (rounded < 1) return getString(R.string.wind_no_difference);
-        return getResources().getQuantityString(minutes > 0 ? R.plurals.wind_adds
-                : R.plurals.wind_saves, (int) rounded, rounded);
+        return WindCostText.format(this, minutes, false);
     }
 
     private void message(String text) {

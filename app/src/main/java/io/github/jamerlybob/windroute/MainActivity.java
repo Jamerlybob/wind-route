@@ -1,15 +1,28 @@
 package io.github.jamerlybob.windroute;
 
 import android.Manifest;
+import android.content.SharedPreferences;
+import io.github.jamerlybob.windroute.units.UnitText;
+import io.github.jamerlybob.windroute.nav.TurnGuide;
+import io.github.jamerlybob.windroute.nav.CuePlanFactory;
+import io.github.jamerlybob.windroute.nav.CuePlanner;
+import io.github.jamerlybob.windroute.nav.CueBuilder;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ComponentName;
+import android.content.ServiceConnection;
 import android.net.Uri;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.IBinder;
+import android.os.Build;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -66,7 +79,7 @@ import io.github.jamerlybob.windroute.trip.TripStore;
 
 /** Wires the route form, retained data, background loaders and screen controllers. */
 public final class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
-        CurrentLocationController.Listener {
+        CurrentLocationController.Listener, RideService.Listener {
     private final ExecutorService background = Executors.newSingleThreadExecutor();
     private final Handler mainThread = new Handler(Looper.getMainLooper());
 
@@ -88,10 +101,39 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     private RideSheetController sheetController;
     private int searchGeneration;
     private boolean busy;
+    private RideService rideService;
+    private boolean rideBound;
+    private boolean rideBinding;
+    private RideScreenController rideScreen;
+    private RideService.RideUpdate lastRideUpdate;
     private final ActivityResultLauncher<String[]> importGpx = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), this::importGpx);
     private final ActivityResultLauncher<String> exportGpx = registerForActivityResult(
             new ActivityResultContracts.CreateDocument("application/gpx+xml"), this::exportGpx);
+    private final ActivityResultLauncher<String[]> preciseLocation = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(), grants -> {
+                if (Boolean.TRUE.equals(grants.get(Manifest.permission.ACCESS_FINE_LOCATION))) beginRideService();
+                else showMessage(getString(R.string.precise_location_explanation));
+            });
+    private final ActivityResultLauncher<String> notifications = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), ignored -> { });
+    private final ServiceConnection rideConnection = new ServiceConnection() {
+        @Override public void onServiceConnected(ComponentName name, IBinder binder) {
+            rideService = ((RideService.RideBinder) binder).service();
+            rideBound = true;
+            rideBinding = false;
+            if (rideService.isRunning()) {
+                state.route = rideService.route();
+                showRideMode();
+                rideService.setListener(MainActivity.this);
+            } else leaveRideMode();
+        }
+
+        @Override public void onServiceDisconnected(ComponentName name) {
+            rideService = null;
+            leaveRideMode();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +147,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         bindViews();
         searchController = new SearchCardController(this);
         sheetController = new RideSheetController(this);
+        rideScreen = new RideScreenController(this);
         departurePicker = new DeparturePickerController(this, this::departureChanged);
         keepCardsClearOfSystemBars();
         wireControls();
@@ -156,6 +199,122 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         findViewById(R.id.settings).setOnClickListener(this::showMenu);
         findViewById(R.id.settings_collapsed).setOnClickListener(this::showMenu);
         findViewById(R.id.find_places).setOnClickListener(v -> findPlaces());
+        findViewById(R.id.start_ride).setOnClickListener(v -> startRide());
+        findViewById(R.id.stop_ride).setOnClickListener(v -> stopRide());
+        findViewById(R.id.reroute).setOnClickListener(v -> rerouteFromCurrentPosition());
+    }
+
+    private void startRide() {
+        if (state.route == null) return;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            SharedPreferences choices = getSharedPreferences(
+                    SettingsStore.PREFERENCES_NAME, MODE_PRIVATE);
+            if (choices.getBoolean("ride_precise_requested", false)) {
+                new AlertDialog.Builder(this).setMessage(R.string.precise_location_explanation)
+                        .setPositiveButton(R.string.location_open_settings, (dialog, which) ->
+                                startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:" + getPackageName()))))
+                        .setNegativeButton(android.R.string.cancel, null).show();
+                return;
+            }
+            new AlertDialog.Builder(this).setMessage(R.string.precise_location_explanation)
+                    .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                        choices.edit().putBoolean("ride_precise_requested", true).apply();
+                        preciseLocation.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION});
+                    })
+                    .setNegativeButton(android.R.string.cancel, null).show();
+            return;
+        }
+        beginRideService();
+    }
+
+    private void beginRideService() {
+        // Start ride means riding now, even if the planning screen was previewing
+        // tomorrow. Reuse cached forecasts; starting guidance never calls Routes.
+        state.departureEpochSeconds = System.currentTimeMillis() / 1000;
+        RideAnalysis analysis = currentAnalysis();
+        CueBuilder words =
+                new CueBuilder(
+                        getResources().getStringArray(R.array.cue_words), settings.distanceUnit);
+        List<CuePlanner.Event> events;
+        if (analysis != null) {
+            events = CuePlanFactory.build(analysis, settings, words);
+        } else {
+            // A weather failure must not silence real Google turn instructions.
+            events = settings.cueTurns ? CuePlanner.turnEvents(
+                    state.route.steps, new TurnGuide(state.route).starts,
+                    words, settings.cueAheadMeters) : Collections.emptyList();
+        }
+        RideService.prepare(state.route, analysis, events, state.sampleIndexes, state.forecasts);
+        Intent intent = new Intent(this, RideService.class);
+        ContextCompat.startForegroundService(this, intent);
+        if (!rideBinding && !rideBound) rideBinding = bindService(intent, rideConnection, 0);
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,
+                Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            new AlertDialog.Builder(this).setMessage(R.string.notification_explanation)
+                    .setPositiveButton(android.R.string.ok, (dialog, which) ->
+                            notifications.launch(Manifest.permission.POST_NOTIFICATIONS))
+                    .setNegativeButton(android.R.string.cancel, null).show();
+        }
+    }
+
+    private void showRideMode() {
+        rideScreen.show(state.route, rideService == null ? null : rideService.analysis(), settings, renderer);
+    }
+
+    private void stopRide() {
+        if (rideService != null) rideService.stopRide(false);
+        else stopService(new Intent(this, RideService.class));
+        leaveRideMode();
+    }
+
+    private void leaveRideMode() {
+        rideScreen.hide(state.route != null, renderer);
+        detachRide();
+    }
+
+    private void detachRide() {
+        if (rideBound || rideBinding) {
+            if (rideService != null) rideService.setListener(null);
+            unbindService(rideConnection);
+        }
+        rideService = null;
+        rideBound = false;
+        rideBinding = false;
+    }
+
+    @Override public void onRideUpdate(RideService.RideUpdate update) {
+        lastRideUpdate = update;
+        showRideMode();
+        rideScreen.onRideUpdate(update, map, settings);
+    }
+
+    private void rerouteFromCurrentPosition() {
+        if (lastRideUpdate == null) return;
+        // Re-routing spends one of the small daily Google Routes quota. It is
+        // intentionally tied only to this explicit tap and never runs on GPS drift.
+        stopRide();
+        originInput.setText(R.string.my_location);
+        state.originCoordinates = lastRideUpdate.position;
+        state.destinationCoordinates = state.route.points.get(state.route.points.size() - 1);
+        search();
+    }
+
+    @Override public void onRideStopped(boolean arrived) {
+        if (arrived && lastRideUpdate != null) {
+            double average = rideService == null ? Double.NaN : rideService.averageHeadwindKmh();
+            String experiencedWind = Double.isNaN(average) ? getString(R.string.ride_wind_unknown)
+                    : getString(average >= 0 ? R.string.net_headwind : R.string.net_tailwind,
+                    new UnitText(this, settings)
+                            .windSpeed(Math.abs(average)));
+            showMessage(getString(R.string.ride_summary,
+                    new UnitText(this, settings)
+                            .distance(lastRideUpdate.riddenMeters),
+                    rideScreen.durationText(lastRideUpdate.elapsedSeconds), experiencedWind));
+        }
+        leaveRideMode();
     }
 
     private void wireBack() {
@@ -183,10 +342,33 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        // Binding without AUTO_CREATE only reconnects an existing ride. Opening
+        // the app must never silently start GPS tracking or a foreground service.
+        if (!rideBound && !rideBinding) {
+            rideBinding = bindService(new Intent(this, RideService.class), rideConnection, 0);
+            // The notification's Stop action can finish a ride while this
+            // Activity is off-screen. Do not redisplay its stale riding controls.
+            if (!rideBinding) leaveRideMode();
+        }
+    }
+
+    @Override protected void onStop() {
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        detachRide();
+        super.onStop();
+    }
+
     @Override
     protected void onDestroy() {
         if (suggestions != null) {
             suggestions.destroy();
+        }
+        if (rideBound) {
+            rideService.setListener(null);
+            unbindService(rideConnection);
+            rideBound = false;
         }
         background.shutdownNow();
         super.onDestroy();
@@ -203,6 +385,10 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 searchCard, summaryCard);
         enableMyLocationIfAllowed();
         showWind();
+        if (rideService != null && rideService.isRunning()) {
+            showRideMode();
+            if (lastRideUpdate != null) onRideUpdate(lastRideUpdate);
+        }
     }
 
     private void restoreLastRouteIfNeeded() {
@@ -409,6 +595,18 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     /** Recomputes presentation from retained data; no network call occurs here. */
     private void showWind() {
+        if (renderer != null && rideService != null && rideService.isRunning()) {
+            renderer.setRideMode(true);
+            RideAnalysis ride = rideService.analysis();
+            if (ride != null) {
+                renderer.show(ride, settings, sheetController.shortWindCost(
+                        ride.power.differenceMinutes), 0);
+                rideScreen.mapCleared(); // the renderer clears old map overlays
+            }
+            showRideMode();
+            if (lastRideUpdate != null) onRideUpdate(lastRideUpdate);
+            return;
+        }
         if (renderer == null || state.route == null || state.sampleIndexes == null
                 || state.forecasts == null || state.forecasts.isEmpty()) {
             return;
@@ -479,6 +677,10 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             setMargins(searchCard, margin + bars.left, margin + bars.top,
                     margin + bars.right, 0);
             setMargins(summaryCard, bars.left, 0, bars.right, 0);
+            setMargins(findViewById(R.id.ride_banner), margin + bars.left, margin + bars.top,
+                    margin + bars.right, 0);
+            setMargins(findViewById(R.id.ride_strip), margin + bars.left, 0,
+                    margin + bars.right, margin + safeBottom);
             // BottomSheetBehavior positions the sheet itself and can disregard
             // its bottom margin. Padding the actual content is what reliably
             // keeps both resting and scrolled text above gesture navigation.
@@ -559,8 +761,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 Route route = new Route(thin.points, distance, duration, Collections.emptyList(),
                         Route.Source.GPX);
                 ElevationProfile elevation = elevationFromGpx(thin);
+                String importName = parsed.name.isEmpty() ? fileName(uri) : parsed.name;
                 mainThread.post(() -> acceptImportedRoute(generation, route, elevation,
-                        parsed.waypoints, settings.ridingSpeedKmh <= 0
+                        parsed.waypoints, importName, settings.ridingSpeedKmh <= 0
                                 && routeStore.shouldExplainDefaultGpxSpeed()));
             } catch (Exception error) {
                 postFailure(generation, error);
@@ -578,9 +781,12 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void acceptImportedRoute(int generation, Route route, ElevationProfile elevation,
-                                     List<GpxParser.Waypoint> waypoints, boolean usedDefaultSpeed) {
+                                     List<GpxParser.Waypoint> waypoints, String importName,
+                                     boolean usedDefaultSpeed) {
         if (generation != searchGeneration || isDestroyed()) return;
-        originInput.setText(R.string.gpx_imported);
+        String displayName = importName == null || importName.trim().isEmpty()
+                ? getString(R.string.gpx_imported) : importName.trim();
+        originInput.setText(displayName);
         destinationInput.setText(R.string.gpx_finish);
         state.route = route;
         state.elevation = elevation;
@@ -588,11 +794,28 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         state.exportWaypoints = new ArrayList<>(waypoints);
         routeStore.saveExportWaypoints(state.exportWaypoints);
         state.departureEpochSeconds = System.currentTimeMillis() / 1000;
-        routeStore.saveRoute(getString(R.string.gpx_imported), getString(R.string.gpx_finish), route);
+        routeStore.saveRoute(displayName, getString(R.string.gpx_finish), route);
         if (elevation != null) routeStore.saveElevations(elevation.rawElevationMeters);
         if (usedDefaultSpeed) showMessage(getString(R.string.gpx_default_speed));
         refreshForecast(route);
         if (elevation == null) fetchElevation(route, generation);
+    }
+
+    private String fileName(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(uri,
+                new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                String name = cursor.getString(0);
+                if (name != null && name.toLowerCase(java.util.Locale.ROOT).endsWith(".gpx")) {
+                    name = name.substring(0, name.length() - 4);
+                }
+                return name;
+            }
+        } catch (RuntimeException ignored) {
+            // Some document providers do not expose metadata; the generic GPX
+            // label is still a safe fallback.
+        }
+        return getString(R.string.gpx_imported);
     }
 
     private void exportGpx(Uri uri) {
@@ -685,16 +908,34 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     private void findPlaces() {
         if (state.route == null || busy) return;
-        showMessage(getString(R.string.places_busy));
+        if (!findViewById(R.id.find_places).isEnabled()) return;
+        final Route lookupRoute = state.route;
+        findViewById(R.id.find_places).setEnabled(false);
+        findViewById(R.id.places_progress).setVisibility(View.VISIBLE);
+        android.widget.TextView status = findViewById(R.id.places_status);
+        status.setVisibility(View.VISIBLE);
+        status.setText(R.string.places_busy);
         background.execute(() -> {
             try {
-                List<Poi> found = OverpassClient.fetch(state.route.points,
+                List<Poi> found = OverpassClient.fetch(lookupRoute.points,
                         Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING), 500);
-                List<PoiAlongRoute> located = PoiAlongRoute.locate(state.route.points, found);
-                mainThread.post(() -> showPlaces(located));
+                List<PoiAlongRoute> located = PoiAlongRoute.locate(lookupRoute.points, found);
+                mainThread.post(() -> {
+                    if (isDestroyed()) return;
+                    findViewById(R.id.find_places).setEnabled(true);
+                    findViewById(R.id.places_progress).setVisibility(View.GONE);
+                    if (lookupRoute != state.route) { status.setVisibility(View.GONE); return; }
+                    status.setText(located.isEmpty() ? getString(R.string.places_none, 500)
+                            : getString(R.string.places_results, located.size()));
+                    showPlaces(located);
+                });
             } catch (Exception error) {
-                mainThread.post(() -> showMessage(error.getMessage() == null
-                        ? error.toString() : error.getMessage()));
+                mainThread.post(() -> {
+                    if (isDestroyed()) return;
+                    findViewById(R.id.find_places).setEnabled(true);
+                    findViewById(R.id.places_progress).setVisibility(View.GONE);
+                    status.setText(R.string.places_error);
+                });
             }
         });
     }
@@ -704,17 +945,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         android.widget.LinearLayout list = findViewById(R.id.places_list);
         list.removeAllViews();
         findViewById(R.id.places_credit).setVisibility(View.VISIBLE);
-        io.github.jamerlybob.windroute.units.UnitText units =
-                new io.github.jamerlybob.windroute.units.UnitText(this, settings);
-        for (PoiAlongRoute located : places) {
-            android.widget.Button row = new com.google.android.material.button.MaterialButton(this);
-            String kind = poiKind(located.poi.kind);
-            String name = located.poi.name == null || located.poi.name.isEmpty()
-                    ? getString(R.string.place_unnamed, kind) : located.poi.name;
-            row.setText(getString(R.string.place_line, name,
-                    units.distance(located.distanceAlongRouteMeters),
-                    units.distance(located.distanceOffRouteMeters)));
-            row.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(name)
+        if (places.isEmpty()) showMessage(getString(R.string.places_none, 500));
+        PlacesListController.append(this, list, places, settings, (located, name, kind) ->
+                new AlertDialog.Builder(this).setTitle(name)
                     .setMessage(kind + (located.poi.openingHours == null ? ""
                             : "\n" + located.poi.openingHours))
                     .setPositiveButton(R.string.add_to_export, (dialog, which) -> {
@@ -723,20 +956,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                         routeStore.saveExportWaypoints(state.exportWaypoints);
                         showMessage(getString(R.string.added_to_export));
                     }).setNegativeButton(android.R.string.cancel, null).show());
-            list.addView(row);
-        }
         if (renderer != null) renderer.showPlaces(places);
-    }
-
-    private String poiKind(PoiKind kind) {
-        switch (kind) {
-            case WATER: return getString(R.string.poi_water);
-            case FOOD: return getString(R.string.poi_food);
-            case CAMPING: return getString(R.string.poi_camping);
-            case BIKE_SHOP: return getString(R.string.poi_bike_shop);
-            case TOILETS: return getString(R.string.poi_toilets);
-            default: return getString(R.string.poi_shelter);
-        }
     }
 
     private void hideKeyboard() {
@@ -746,4 +966,5 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         destinationInput.clearFocus();
         originInput.clearFocus();
     }
+
 }

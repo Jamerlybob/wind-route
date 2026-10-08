@@ -23,16 +23,32 @@ public final class Settings {
     public final int calmBelowKmh;
     public final TemperatureUnit temperatureUnit;
     public final ElevationUnit elevationUnit;
+    public final boolean cueTurns;
+    public final boolean cueClimbs;
+    public final boolean cueWind;
+    public final boolean cueGusts;
+    public final int cueAheadMeters;
+    public final boolean lessTalk;
 
     public Settings(DistanceUnit distanceUnit, WindSpeedUnit windSpeedUnit,
                     int ridingSpeedKmh, Theme theme, int calmBelowKmh) {
         this(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh,
-                TemperatureUnit.CELSIUS, ElevationUnit.METERS);
+                TemperatureUnit.CELSIUS, ElevationUnit.METERS,
+                true, true, true, true, 300, false);
     }
 
     public Settings(DistanceUnit distanceUnit, WindSpeedUnit windSpeedUnit,
                     int ridingSpeedKmh, Theme theme, int calmBelowKmh,
                     TemperatureUnit temperatureUnit, ElevationUnit elevationUnit) {
+        this(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh,
+                temperatureUnit, elevationUnit, true, true, true, true, 300, false);
+    }
+
+    public Settings(DistanceUnit distanceUnit, WindSpeedUnit windSpeedUnit,
+                    int ridingSpeedKmh, Theme theme, int calmBelowKmh,
+                    TemperatureUnit temperatureUnit, ElevationUnit elevationUnit,
+                    boolean cueTurns, boolean cueClimbs, boolean cueWind, boolean cueGusts,
+                    int cueAheadMeters, boolean lessTalk) {
         this.distanceUnit = distanceUnit;
         this.windSpeedUnit = windSpeedUnit;
         this.ridingSpeedKmh = ridingSpeedKmh;
@@ -40,6 +56,12 @@ public final class Settings {
         this.calmBelowKmh = calmBelowKmh;
         this.temperatureUnit = temperatureUnit;
         this.elevationUnit = elevationUnit;
+        this.cueTurns = cueTurns;
+        this.cueClimbs = cueClimbs;
+        this.cueWind = cueWind;
+        this.cueGusts = cueGusts;
+        this.cueAheadMeters = cueAheadMeters;
+        this.lessTalk = lessTalk;
     }
 
     public static Settings defaults() {
@@ -59,12 +81,19 @@ public final class Settings {
                 && theme == that.theme
                 && calmBelowKmh == that.calmBelowKmh
                 && temperatureUnit == that.temperatureUnit
-                && elevationUnit == that.elevationUnit;
+                && elevationUnit == that.elevationUnit
+                && cueTurns == that.cueTurns
+                && cueClimbs == that.cueClimbs
+                && cueWind == that.cueWind
+                && cueGusts == that.cueGusts
+                && cueAheadMeters == that.cueAheadMeters
+                && lessTalk == that.lessTalk;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh,
-                temperatureUnit, elevationUnit);
+                temperatureUnit, elevationUnit, cueTurns, cueClimbs, cueWind, cueGusts,
+                cueAheadMeters, lessTalk);
     }
 }

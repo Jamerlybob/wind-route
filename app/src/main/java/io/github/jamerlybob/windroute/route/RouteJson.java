@@ -26,12 +26,19 @@ public final class RouteJson {
             for (String warning : route.warnings) {
                 warnings.put(warning);
             }
+            JSONArray steps = new JSONArray();
+            for (RouteStep step : route.steps) {
+                steps.put(new JSONObject().put("distanceMeters", step.distanceMeters)
+                        .put("maneuver", step.maneuver).put("instruction", step.instruction)
+                        .put("start", point(step.start)).put("end", point(step.end)));
+            }
             return new JSONObject()
                     .put("points", points)
                     .put("distanceMeters", route.distanceMeters)
                     .put("durationSeconds", route.durationSeconds)
                     .put("source", route.source.name())
                     .put("warnings", warnings)
+                    .put("steps", steps)
                     .toString();
         } catch (JSONException e) {
             // All keys and values above are known and finite, so this indicates
@@ -70,6 +77,22 @@ public final class RouteJson {
         } catch (IllegalArgumentException ignored) {
             source = Route.Source.GOOGLE;
         }
-        return new Route(points, distance, duration, warnings, source);
+        List<RouteStep> steps = new ArrayList<>();
+        JSONArray rawSteps = root.optJSONArray("steps");
+        for (int i = 0; rawSteps != null && i < rawSteps.length(); i++) {
+            JSONObject step = rawSteps.getJSONObject(i);
+            steps.add(new RouteStep(step.optInt("distanceMeters"),
+                    step.optString("maneuver"), step.optString("instruction"),
+                    readPoint(step.getJSONArray("start")), readPoint(step.getJSONArray("end"))));
+        }
+        return new Route(points, distance, duration, warnings, source, steps);
+    }
+
+    private static JSONArray point(GeoPoint point) throws JSONException {
+        return new JSONArray().put(point.lat).put(point.lng);
+    }
+
+    private static GeoPoint readPoint(JSONArray point) throws JSONException {
+        return new GeoPoint(point.getDouble(0), point.getDouble(1));
     }
 }

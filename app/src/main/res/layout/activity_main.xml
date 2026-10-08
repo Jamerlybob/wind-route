@@ -176,6 +176,54 @@
             android:textAppearance="?attr/textAppearanceBodyMedium" />
     </com.google.android.material.card.MaterialCardView>
 
+    <com.google.android.material.card.MaterialCardView android:id="@+id/ride_banner"
+        style="@style/Widget.WindRoute.Card" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_gravity="top"
+        android:layout_margin="12dp" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="14dp">
+            <TextView android:id="@+id/ride_instruction" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
+            <TextView android:id="@+id/ride_warnings" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textAppearance="?attr/textAppearanceBodySmall"
+                android:visibility="gone" />
+            <LinearLayout android:id="@+id/off_route_banner" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center_vertical"
+                android:orientation="horizontal" android:visibility="gone">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:text="@string/off_route"
+                    android:textColor="@color/wind_headwind" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/reroute"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/reroute_from_here" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView android:id="@+id/ride_strip"
+        style="@style/Widget.WindRoute.Card" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_gravity="bottom"
+        android:layout_margin="12dp" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="10dp">
+            <io.github.jamerlybob.windroute.ElevationProfileView android:id="@+id/ride_elevation"
+                android:layout_width="match_parent" android:layout_height="100dp" android:visibility="gone" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:id="@+id/ride_wind_arrow" android:layout_width="40dp"
+                android:layout_height="40dp" android:gravity="center" android:text="@string/ride_wind_arrow"
+                android:textAppearance="?attr/textAppearanceHeadlineMedium" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/ride_stats" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/stop_ride"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/stop_ride" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/summary_card"
         style="@style/Widget.WindRoute.Card"
@@ -242,8 +290,11 @@
                 <TextView android:id="@+id/warnings" android:layout_width="match_parent"
                     android:layout_height="wrap_content" android:layout_marginTop="6dp"
                     android:maxLines="2" android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant" android:visibility="gone" />
 
+                <com.google.android.material.button.MaterialButton android:id="@+id/start_ride"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:text="@string/start_ride" />
             </LinearLayout>
 
             <androidx.core.widget.NestedScrollView
@@ -290,11 +341,17 @@
                     <LinearLayout android:id="@+id/climbs_list" android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:orientation="vertical" />
                     <com.google.android.material.button.MaterialButton
+                        style="@style/Widget.Material3.Button.TonalButton"
                         android:id="@+id/find_places" android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:layout_marginTop="18dp"
                         android:text="@string/find_places" />
                     <TextView android:id="@+id/places_credit" style="@style/Widget.WindRoute.SectionBody"
                         android:text="@string/osm_credit" android:visibility="gone" />
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/places_progress" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />
+                    <TextView android:id="@+id/places_status" style="@style/Widget.WindRoute.SectionBody"
+                        android:visibility="gone" />
                     <LinearLayout android:id="@+id/places_list" android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:orientation="vertical" />
                 </LinearLayout>

@@ -33,9 +33,16 @@ public final class SearchCardController {
             time = new SimpleDateFormat(pattern, Locale.getDefault())
                     .format(new Date(departureEpochSeconds * 1000));
         }
-        ((TextView) activity.findViewById(R.id.search_collapsed_text)).setText(
-                activity.getString(R.string.search_collapsed,
-                        shortPlace(origin), shortPlace(destination), time));
+        String compact;
+        if (destination != null && destination.equals(activity.getString(R.string.gpx_finish))) {
+            // Imported tracks and trip days have a complete display label,
+            // rather than two real endpoint names.
+            compact = origin;
+        } else {
+            compact = activity.getString(R.string.search_collapsed,
+                    shortPlace(origin), shortPlace(destination), time);
+        }
+        ((TextView) activity.findViewById(R.id.search_collapsed_text)).setText(compact);
         collapse();
     }
 

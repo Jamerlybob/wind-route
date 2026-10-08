@@ -14,6 +14,15 @@ import io.github.jamerlybob.windroute.route.GeoPoint;
  * reusable while route ordering and gap checks stay pure and testable.
  */
 public final class PoiAlongRoute {
+    public static List<Poi> withinCorridor(List<GeoPoint> route, List<Poi> places,
+                                           double corridorMeters) {
+        List<Poi> result = new ArrayList<>();
+        for (Poi place : places) {
+            if (io.github.jamerlybob.windroute.nav.RouteProgress.locate(route, place.position)
+                    .distanceOffRouteMeters <= corridorMeters) result.add(place);
+        }
+        return result;
+    }
     public final Poi poi;
     public final double distanceAlongRouteMeters;
     public final double distanceOffRouteMeters;

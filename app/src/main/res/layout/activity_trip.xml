@@ -25,6 +25,7 @@
             <RadioButton android:id="@+id/split_distance" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:text="@string/split_distance" />
         </RadioGroup>
+        <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/days_hint" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal">
             <EditText android:id="@+id/trip_days" android:layout_width="0dp" android:layout_height="48dp"
@@ -41,37 +42,47 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal">
             <com.google.android.material.button.MaterialButton android:id="@+id/trip_start_date"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
             <com.google.android.material.button.MaterialButton android:id="@+id/trip_start_time"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
         </LinearLayout>
         <com.google.android.material.button.MaterialButton android:id="@+id/apply_split"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/update_days" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:gravity="center" android:orientation="horizontal">
             <com.google.android.material.button.MaterialButton android:id="@+id/shift_earlier"
-                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_earlier" />
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_earlier" />
             <com.google.android.material.button.MaterialButton android:id="@+id/shift_later"
-                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_later" />
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_later" />
         </LinearLayout>
-        <TextView android:id="@+id/best_trip" style="@style/Widget.WindRoute.SectionBody" />
+        <TextView android:id="@+id/best_trip" style="@style/Widget.WindRoute.SectionBody"
+            android:minHeight="48dp" android:gravity="center_vertical"
+            android:background="?attr/selectableItemBackground" android:focusable="true" />
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/trip_progress" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />
         <LinearLayout android:id="@+id/trip_days_list" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="vertical" />
+        <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/gap_threshold_hint" />
         <EditText android:id="@+id/gap_threshold" android:layout_width="match_parent"
             android:layout_height="48dp" android:hint="@string/gap_threshold_hint"
             android:importantForAutofill="no" android:inputType="numberDecimal"
             android:text="@string/default_gap_threshold" />
         <com.google.android.material.button.MaterialButton android:id="@+id/trip_find_places"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/find_places" />
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/trip_places_progress" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />
+        <TextView android:id="@+id/trip_places_status" style="@style/Widget.WindRoute.SectionBody"
+            android:visibility="gone" />
         <TextView android:id="@+id/trip_places_credit" style="@style/Widget.WindRoute.SectionBody"
             android:text="@string/osm_credit" android:visibility="gone" />
         <LinearLayout android:id="@+id/trip_places_list" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="vertical" />
         <com.google.android.material.button.MaterialButton android:id="@+id/save_trip"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/save_trip" />
         <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/map_offline_notice" />
