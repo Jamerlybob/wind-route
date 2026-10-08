@@ -42,7 +42,13 @@ never-compiled work in the tree: `RideService`, `nav/CueBuilder`,
 
 To carry on (the limit resets at 12:07 on 2026-10-09):
 
-    codex exec resume 01a11cdf-ba06-74b1-b283-a8181b280ea2 -m gpt-5.6-sol       -c model_reasoning_effort=low "carry on and finish both specs"
+    <newer codex.exe> exec resume 01a11cdf-ba06-74b1-b283-a8181b280ea2       -m gpt-6.1-sol -c model_reasoning_effort=low "carry on and finish both specs"
+
+Two Codex CLIs are installed. `codex` on the PATH is 0.154.0 and only knows
+the 5.6 models. The desktop app's own copy under
+`%LOCALAPPDATA%\OpenAI\Codexin\<hash>\codex.exe` is newer (0.162 on
+2026-10-09) and offers `gpt-6.1-sol`, `gpt-6-sol` and `gpt-6-luna`. The hash
+folder changes when the app updates, so look for it each time.
 
 Then Claude builds, reviews, runs it on the emulator (start it first; it was
 shut down to save memory), commits and sends James the APK. Riding mode's
@@ -51,8 +57,9 @@ audio and real GPS need James's phone.
 Codex model and effort: James's `~/.codex/config.toml` default is
 `gpt-5.6-sol` at low effort. Claude ran it at high (three agents at once,
 allowance gone in two hours) and then medium (one agent, about four hours).
-Use low from here unless a task clearly needs more, one agent at a time, and
-consider `gpt-5.6-terra` for polish and comment passes. `codex debug models`
+James asked on 2026-10-09 for whatever is cheapest that does the job: use
+`gpt-6.1-sol` at low for feature work and `gpt-6-luna` for polish and comment
+passes, one agent at a time. `codex debug models`
 lists what the account offers.
 
 The laptop ran out of memory on 2026-10-09 with the emulator, Codex and
