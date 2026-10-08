@@ -63,10 +63,17 @@ Checked against Google's pricing pages the same day:
   unless James upgrades it to a paid account. Upgrading does not cost
   anything by itself; the monthly allowances still apply.
 
-Open decision for James: upgrade and set a Routes API quota of about 30
-requests a day (under 1,000 a month, so it cannot leave the free allowance
-on either SKU), or replace Google with OpenStreetMap, which needs a new map
-library and a different routing service.
+Decided 2026-10-08: stay on Google. James is fine with a card on the account
+and was given the console steps the same day: upgrade the billing account,
+cap the Routes API daily quota at about 30 requests (under 1,000 a month, so
+it stays inside the free allowance on either SKU), add a budget alert, and
+restrict the key to Maps SDK for Android and Routes API. Not yet confirmed
+done, so ask him next session. Do not add an Android-app restriction to the
+key: the Routes call is plain HTTP and does not send the package headers.
+
+Getting builds to his phone: `SendUserFile` was not available this session,
+so the APK was copied to `Desktop\WindRoute` on the laptop. He may plug the
+phone in with USB debugging; check `adb devices` and install directly if so.
 
 ## Not done yet, on purpose
 

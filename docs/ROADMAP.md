@@ -85,9 +85,8 @@ before a ride?
 
 ## Decisions waiting on James
 
-1. What to do when the Google Cloud free trial ends: upgrade the billing
-   account and cap the quotas so the bill stays at zero, or move off Google
-   to OpenStreetMap. See `STATE.md`.
+1. (Settled: stay on Google, upgrade the billing account and cap the Routes
+   quota. See `STATE.md`.)
 2. App name. WindRoute is a working title.
 3. Whether the app stays personal (non-commercial Open-Meteo is fine) or goes
    on the Play Store (needs Open-Meteo's commercial terms and a locked-down key).
