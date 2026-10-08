@@ -31,6 +31,8 @@ public final class SettingsActivity extends AppCompatActivity {
     private Spinner ridingSpeed;
     private Spinner theme;
     private Spinner calmBelow;
+    private Spinner temperature;
+    private Spinner elevation;
     private Settings current;
 
     @Override
@@ -45,6 +47,8 @@ public final class SettingsActivity extends AppCompatActivity {
         ridingSpeed = findViewById(R.id.setting_riding_speed);
         theme = findViewById(R.id.setting_theme);
         calmBelow = findViewById(R.id.setting_calm_below);
+        temperature = findViewById(R.id.setting_temperature);
+        elevation = findViewById(R.id.setting_elevation);
 
         keepContentClearOfSystemBars();
         findViewById(R.id.settings_back).setOnClickListener(v -> finish());
@@ -72,6 +76,10 @@ public final class SettingsActivity extends AppCompatActivity {
         setChoices(windSpeed, Arrays.asList(getResources().getStringArray(
                 R.array.wind_speed_options)));
         setChoices(theme, Arrays.asList(getResources().getStringArray(R.array.theme_options)));
+        setChoices(temperature, Arrays.asList(getResources().getStringArray(
+                R.array.temperature_options)));
+        setChoices(elevation, Arrays.asList(getResources().getStringArray(
+                R.array.elevation_options)));
 
         UnitText units = new UnitText(this, current);
         List<String> ridingChoices = new ArrayList<>();
@@ -102,6 +110,8 @@ public final class SettingsActivity extends AppCompatActivity {
                 ? 0 : current.ridingSpeedKmh - 9);
         theme.setSelection(current.theme.ordinal());
         calmBelow.setSelection(current.calmBelowKmh);
+        temperature.setSelection(current.temperatureUnit.ordinal());
+        elevation.setSelection(current.elevationUnit.ordinal());
     }
 
     private void listenForChanges() {
@@ -122,6 +132,8 @@ public final class SettingsActivity extends AppCompatActivity {
         ridingSpeed.setOnItemSelectedListener(listener);
         theme.setOnItemSelectedListener(listener);
         calmBelow.setOnItemSelectedListener(listener);
+        temperature.setOnItemSelectedListener(listener);
+        elevation.setOnItemSelectedListener(listener);
     }
 
     private void saveSelections() {
@@ -133,7 +145,9 @@ public final class SettingsActivity extends AppCompatActivity {
                 Settings.WindSpeedUnit.values()[windSpeed.getSelectedItemPosition()],
                 riding,
                 Settings.Theme.values()[theme.getSelectedItemPosition()],
-                calmBelow.getSelectedItemPosition());
+                calmBelow.getSelectedItemPosition(),
+                Settings.TemperatureUnit.values()[temperature.getSelectedItemPosition()],
+                Settings.ElevationUnit.values()[elevation.getSelectedItemPosition()]);
         if (changed.equals(current)) {
             return;
         }

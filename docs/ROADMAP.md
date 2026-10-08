@@ -33,24 +33,24 @@ before a ride?
 
 ## Milestone 2: when should I leave?
 
-- [ ] Departure time picker for any time in the next 7 days
-- [ ] "Best time to leave" strip: the next 24 hours scored by net headwind,
+- [x] Departure time picker for any time in the next 7 days
+- [x] "Best time to leave" strip: the next 24 hours scored by net headwind,
       tap an hour to recolour
-- [ ] Rain and temperature along the route, on the same timeline
-- [ ] Gust warnings on exposed stretches
-- [ ] Tap any stretch for its wind, time of arrival and gradient
-- [ ] Estimated time cost of the wind, not just km/h (simple power model;
+- [x] Rain and temperature along the route, on the same timeline
+- [x] Gust warnings on exposed stretches
+- [x] Tap any stretch for its wind, time of arrival and gradient
+- [x] Estimated time cost of the wind, not just km/h (simple power model;
       state the assumptions in the UI)
 
 ## Milestone 3: hills
 
-- [ ] Elevation along the route (Open-Meteo elevation API is free; compare
+- [x] Elevation along the route (Open-Meteo elevation API is free; compare
       with Google Elevation before choosing)
-- [ ] Elevation profile under the map, coloured by wind
-- [ ] Climb detection: list the climbs with length, gain, average and steepest
+- [x] Elevation profile under the map, coloured by wind
+- [x] Climb detection: list the climbs with length, gain, average and steepest
       gradient (Garmin ClimbPro and Wahoo Summit are the reference; Wahoo uses
       a 400 m minimum)
-- [ ] The nasty combination flagged: a climb into a headwind
+- [x] The nasty combination flagged: a climb into a headwind
 
 ## Milestone 4: riding with it
 

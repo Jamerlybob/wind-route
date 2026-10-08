@@ -14,6 +14,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
@@ -28,14 +29,16 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
-import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import io.github.jamerlybob.windroute.elevation.ElevationClient;
+import io.github.jamerlybob.windroute.elevation.ElevationProfile;
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.route.RouteWaypoint;
@@ -43,17 +46,10 @@ import io.github.jamerlybob.windroute.route.RoutesClient;
 import io.github.jamerlybob.windroute.settings.Settings;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
 import io.github.jamerlybob.windroute.units.UnitFormatter;
-import io.github.jamerlybob.windroute.wind.RouteWind;
 
-/**
- * The main screen wires user input, background work and route drawing together.
- * Feature details live in small collaborators so this Activity stays readable.
- */
+/** Wires the route form, retained data, background loaders and screen controllers. */
 public final class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
         CurrentLocationController.Listener {
-    // Route and weather calls must not run on Android's main thread, while
-    // views may only be touched from it. Work therefore goes to this executor
-    // and its results come back through a Handler tied to the main Looper.
     private final ExecutorService background = Executors.newSingleThreadExecutor();
     private final Handler mainThread = new Handler(Looper.getMainLooper());
 
@@ -65,14 +61,14 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     private View progress;
     private View searchCard;
     private View summaryCard;
-    private ChipGroup departChips;
-    // A ViewModel survives the Activity recreation used for theme changes, so
-    // changing light/dark mode does not spend another Google Routes request.
     private RouteState state;
     private RouteStore routeStore;
     private Settings settings;
     private CurrentLocationController currentLocation;
     private PlaceSuggestionsController suggestions;
+    private SearchCardController searchController;
+    private DeparturePickerController departurePicker;
+    private RideSheetController sheetController;
     private int searchGeneration;
     private boolean busy;
 
@@ -81,20 +77,22 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-
         state = new ViewModelProvider(this).get(RouteState.class);
         routeStore = new RouteStore(this);
         settings = SettingsStore.load(this);
         bindViews();
+        searchController = new SearchCardController(this);
+        sheetController = new RideSheetController(this);
+        departurePicker = new DeparturePickerController(this, this::departureChanged);
         keepCardsClearOfSystemBars();
         wireControls();
+        wireBack();
 
         currentLocation = new CurrentLocationController(this, this);
         suggestions = new PlaceSuggestionsController(this, originInput, destinationInput,
                 routeStore, mainThread, this::visibleMapBounds,
                 getString(R.string.my_location), () -> state.originCoordinates = null,
                 () -> state.destinationCoordinates = null);
-
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -110,7 +108,6 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         progress = findViewById(R.id.progress);
         searchCard = findViewById(R.id.search_card);
         summaryCard = findViewById(R.id.summary_card);
-        departChips = findViewById(R.id.depart_chips);
     }
 
     private void wireControls() {
@@ -122,14 +119,27 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             }
             return false;
         });
-        departChips.setOnCheckedStateChangeListener((group, checkedIds) -> showWind());
-
         TextInputLayout originLayout = findViewById(R.id.origin_layout);
         originLayout.setEndIconOnClickListener(v -> currentLocation.requestAfterTap());
         TextInputLayout destinationLayout = findViewById(R.id.destination_layout);
         destinationLayout.setEndIconOnClickListener(v -> swapPlaces());
-        findViewById(R.id.settings).setOnClickListener(v ->
-                startActivity(new Intent(this, SettingsActivity.class)));
+        View.OnClickListener openSettings = v ->
+                startActivity(new Intent(this, SettingsActivity.class));
+        findViewById(R.id.settings).setOnClickListener(openSettings);
+        findViewById(R.id.settings_collapsed).setOnClickListener(openSettings);
+    }
+
+    private void wireBack() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (sheetController.collapseForBack() || searchController.collapseForBack()) {
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        });
     }
 
     @Override
@@ -157,8 +167,6 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
-        // The JSON style works on the legacy map renderer too. The SDK's
-        // setMapColorScheme call is silently ignored on devices still using it.
         if (isNight()) {
             map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style_night));
         }
@@ -172,6 +180,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         if (state.route != null) {
             if (state.forecasts == null) {
                 refreshForecast(state.route);
+            } else if (state.elevation == null && !state.elevationLoading
+                    && !state.elevationFailed) {
+                fetchElevation(state.route, searchGeneration);
             }
             return;
         }
@@ -182,14 +193,22 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         originInput.setText(saved.origin);
         destinationInput.setText(saved.destination);
         state.route = saved.route;
+        state.departureEpochSeconds = System.currentTimeMillis() / 1000;
+        if (saved.elevations != null) {
+            List<GeoPoint> samples = ElevationClient.sampleRoute(saved.route.points);
+            if (samples.size() == saved.elevations.length) {
+                state.elevation = new ElevationProfile(samples, saved.elevations);
+            }
+        }
         refreshForecast(saved.route);
+        if (state.elevation == null) {
+            fetchElevation(saved.route, searchGeneration);
+        }
     }
 
-    /** A restore refreshes only free weather; it must never spend a Routes call. */
+    /** Refreshes free weather only; it can never spend a Routes request. */
     private void refreshForecast(Route route) {
         setBusy(true);
-        // A newer request makes any queued result obsolete. This matters when
-        // an Activity is restored while earlier background work is finishing.
         int generation = ++searchGeneration;
         background.execute(() -> {
             try {
@@ -209,7 +228,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         });
     }
 
-    /** The only method that calls Google Routes, reached by an explicit user action. */
+    /** The only method that calls Google Routes, reached by an explicit tap. */
     private void search() {
         if (busy) {
             return;
@@ -230,45 +249,94 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             showMessage(getString(R.string.location_needs_refresh));
             return;
         }
-
         RouteWaypoint originWaypoint = state.originCoordinates == null
-                ? RouteWaypoint.address(origin)
-                : RouteWaypoint.coordinates(state.originCoordinates);
+                ? RouteWaypoint.address(origin) : RouteWaypoint.coordinates(state.originCoordinates);
         RouteWaypoint destinationWaypoint = state.destinationCoordinates == null
                 ? RouteWaypoint.address(destination)
                 : RouteWaypoint.coordinates(state.destinationCoordinates);
         hideKeyboard();
         setBusy(true);
-        // Only the newest search may replace the route: network callbacks can
-        // finish after their Activity is gone or after another request starts.
         int generation = ++searchGeneration;
-
         background.execute(() -> {
             try {
                 Route route = new RoutesClient(BuildConfig.MAPS_API_KEY)
                         .fetch(originWaypoint, destinationWaypoint);
                 RouteForecastLoader.Result weather = RouteForecastLoader.load(route);
-                mainThread.post(() -> {
-                    if (generation != searchGeneration || isDestroyed()) {
-                        return;
-                    }
-                    state.route = route;
-                    state.sampleIndexes = weather.sampleIndexes;
-                    state.forecasts = weather.forecasts;
-                    routeStore.saveRoute(origin, destination, route);
-                    if (!origin.equals(myLocation)) {
-                        routeStore.addRecentPlace(origin);
-                    }
-                    if (!destination.equals(myLocation)) {
-                        routeStore.addRecentPlace(destination);
-                    }
-                    setBusy(false);
-                    showWind();
-                });
+                mainThread.post(() -> acceptNewRoute(generation, origin, destination,
+                        myLocation, route, weather));
             } catch (Exception e) {
                 postFailure(generation, e);
             }
         });
+    }
+
+    private void acceptNewRoute(int generation, String origin, String destination,
+                                String myLocation, Route route,
+                                RouteForecastLoader.Result weather) {
+        if (generation != searchGeneration || isDestroyed()) {
+            return;
+        }
+        state.route = route;
+        state.sampleIndexes = weather.sampleIndexes;
+        state.forecasts = weather.forecasts;
+        state.elevation = null;
+        state.elevationFailed = false;
+        state.departureEpochSeconds = System.currentTimeMillis() / 1000;
+        routeStore.saveRoute(origin, destination, route);
+        if (!origin.equals(myLocation)) routeStore.addRecentPlace(origin);
+        if (!destination.equals(myLocation)) routeStore.addRecentPlace(destination);
+        setBusy(false);
+        showWind();
+        fetchElevation(route, generation);
+    }
+
+    private void fetchElevation(Route route, int routeGeneration) {
+        if (state.elevationLoading) {
+            return;
+        }
+        state.elevationLoading = true;
+        state.elevationFailed = false;
+        showWind();
+        background.execute(() -> {
+            try {
+                List<GeoPoint> samples = ElevationClient.sampleRoute(route.points);
+                double[] heights = ElevationClient.fetch(samples);
+                ElevationProfile profile = new ElevationProfile(samples, heights);
+                mainThread.post(() -> {
+                    if (route != state.route || isDestroyed()) {
+                        return;
+                    }
+                    state.elevation = profile;
+                    state.elevationLoading = false;
+                    routeStore.saveElevations(heights);
+                    showWind();
+                });
+            } catch (Exception error) {
+                mainThread.post(() -> {
+                    if (route != state.route || isDestroyed()) {
+                        return;
+                    }
+                    state.elevationLoading = false;
+                    state.elevationFailed = true;
+                    showWind();
+                });
+            }
+        });
+    }
+
+    private void departureChanged(long epochSeconds) {
+        state.departureEpochSeconds = Math.max(epochSeconds, System.currentTimeMillis() / 1000);
+        if (state.route == null || state.forecasts == null) {
+            return;
+        }
+        long duration = UnitFormatter.ridingDurationSeconds(state.route.distanceMeters,
+                state.route.durationSeconds, settings.ridingSpeedKmh);
+        if (!RideAnalysis.forecastCovers(state.forecasts,
+                state.departureEpochSeconds, duration)) {
+            refreshForecast(state.route);
+        } else {
+            showWind();
+        }
     }
 
     private void postFailure(int generation, Exception error) {
@@ -283,9 +351,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void swapPlaces() {
-        if (busy) {
-            return;
-        }
+        if (busy) return;
         String origin = originInput.getText().toString();
         String destination = destinationInput.getText().toString();
         GeoPoint originPoint = state.originCoordinates;
@@ -305,26 +371,18 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 || state.forecasts == null || state.forecasts.isEmpty()) {
             return;
         }
-        long duration = UnitFormatter.ridingDurationSeconds(state.route.distanceMeters,
-                state.route.durationSeconds, settings.ridingSpeedKmh);
-        long departure = departureEpochSeconds();
-        RouteWind outward = RouteWind.analyze(state.route, state.sampleIndexes,
-                state.forecasts, departure, duration, settings.calmBelowKmh);
-        RouteWind reverse = RouteWind.analyzeReversed(state.route, state.sampleIndexes,
-                state.forecasts, departure, duration, settings.calmBelowKmh);
-        renderer.show(state.route, outward, reverse, settings, duration);
-    }
-
-    private long departureEpochSeconds() {
-        long now = System.currentTimeMillis() / 1000;
-        int checked = departChips.getCheckedChipId();
-        if (checked == R.id.depart_1h) {
-            return now + 3600;
+        if (state.departureEpochSeconds == 0) {
+            state.departureEpochSeconds = System.currentTimeMillis() / 1000;
         }
-        if (checked == R.id.depart_3h) {
-            return now + 3 * 3600;
-        }
-        return now;
+        RideAnalysis analysis = RideAnalysis.build(state.route, state.sampleIndexes,
+                state.forecasts, state.departureEpochSeconds, settings, state.elevation,
+                System.currentTimeMillis() / 1000);
+        sheetController.show(analysis, settings, departurePicker::select,
+                state.elevationLoading, state.elevationFailed);
+        renderer.show(analysis, settings, sheetController.extraDetails(analysis, settings),
+                sheetController.collapsedHeight());
+        searchController.showRoute(originInput.getText().toString(),
+                destinationInput.getText().toString(), analysis.departureEpochSeconds);
     }
 
     @Override
@@ -334,21 +392,12 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         state.originCoordinates = point;
     }
 
-    @Override
-    public void onLocationPermissionAvailable() {
-        enableMyLocationIfAllowed();
-    }
-
-    @Override
-    public void onLocationMessage(String message) {
-        showMessage(message);
-    }
+    @Override public void onLocationPermissionAvailable() { enableMyLocationIfAllowed(); }
+    @Override public void onLocationMessage(String message) { showMessage(message); }
 
     @SuppressLint("MissingPermission")
     private void enableMyLocationIfAllowed() {
-        if (map == null) {
-            return;
-        }
+        if (map == null) return;
         boolean coarse = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         boolean fine = ContextCompat.checkSelfPermission(this,
@@ -357,15 +406,13 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             try {
                 map.setMyLocationEnabled(true);
             } catch (SecurityException ignored) {
-                // Permission can be revoked between the check and the SDK call.
+                // Permission can be revoked between the check and SDK call.
             }
         }
     }
 
     private PlaceSuggestionsController.SearchBounds visibleMapBounds() {
-        if (map == null) {
-            return null;
-        }
+        if (map == null) return null;
         LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
         return new PlaceSuggestionsController.SearchBounds(bounds.southwest.latitude,
                 bounds.southwest.longitude, bounds.northeast.latitude,
@@ -374,20 +421,19 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     private void keepCardsClearOfSystemBars() {
         int margin = Math.round(12 * getResources().getDisplayMetrics().density);
+        int sheetTop = Math.round(96 * getResources().getDisplayMetrics().density);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             setMargins(searchCard, margin + bars.left, margin + bars.top,
                     margin + bars.right, 0);
-            setMargins(summaryCard, margin + bars.left, 0, margin + bars.right,
-                    margin + bars.bottom);
+            setMargins(summaryCard, bars.left, sheetTop, bars.right, bars.bottom);
             return insets;
         });
     }
 
     private boolean isNight() {
-        int night = getResources().getConfiguration().uiMode
-                & Configuration.UI_MODE_NIGHT_MASK;
-        return night == Configuration.UI_MODE_NIGHT_YES;
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
     }
 
     private static void setMargins(View view, int left, int top, int right, int bottom) {

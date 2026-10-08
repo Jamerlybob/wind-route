@@ -22,6 +22,7 @@ public final class RouteStore {
     private static final String LAST_ORIGIN = "last_origin";
     private static final String LAST_DESTINATION = "last_destination";
     private static final String LAST_ROUTE = "last_route";
+    private static final String LAST_ELEVATIONS = "last_elevations";
     private static final String RECENT_PLACES = "recent_places";
     private static final int MAX_RECENT = 8;
 
@@ -39,7 +40,19 @@ public final class RouteStore {
                 .putString(LAST_ORIGIN, origin)
                 .putString(LAST_DESTINATION, destination)
                 .putString(LAST_ROUTE, RouteJson.write(route))
+                .remove(LAST_ELEVATIONS)
                 .apply();
+    }
+
+    /** Saves heights separately after the route has already been shown. */
+    public void saveElevations(double[] elevations) {
+        JSONArray values = new JSONArray();
+        for (double elevation : elevations) {
+            // The Object overload accepts a finite boxed number without the
+            // checked exception used by Android's primitive double overload.
+            values.put(Double.valueOf(elevation));
+        }
+        preferences.edit().putString(LAST_ELEVATIONS, values.toString()).apply();
     }
 
     /** Returns null for missing, old or damaged data; startup must never fail. */
@@ -51,10 +64,23 @@ public final class RouteStore {
             return null;
         }
         try {
-            return new SavedRoute(origin, destination, RouteJson.read(route));
+            return new SavedRoute(origin, destination, RouteJson.read(route),
+                    readElevations(preferences.getString(LAST_ELEVATIONS, null)));
         } catch (JSONException | RuntimeException e) {
             return null;
         }
+    }
+
+    private static double[] readElevations(String json) throws JSONException {
+        if (json == null) {
+            return null;
+        }
+        JSONArray values = new JSONArray(json);
+        double[] elevations = new double[values.length()];
+        for (int i = 0; i < elevations.length; i++) {
+            elevations[i] = values.getDouble(i);
+        }
+        return elevations;
     }
 
     public List<String> recentPlaces() {
@@ -97,11 +123,13 @@ public final class RouteStore {
         public final String origin;
         public final String destination;
         public final Route route;
+        public final double[] elevations;
 
-        SavedRoute(String origin, String destination, Route route) {
+        SavedRoute(String origin, String destination, Route route, double[] elevations) {
             this.origin = origin;
             this.destination = destination;
             this.route = route;
+            this.elevations = elevations;
         }
     }
 }

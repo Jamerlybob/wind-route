@@ -9,6 +9,8 @@ import java.util.Objects;
 public final class Settings {
     public enum DistanceUnit { KILOMETERS, MILES }
     public enum WindSpeedUnit { KMH, MPH, METERS_PER_SECOND, KNOTS }
+    public enum TemperatureUnit { CELSIUS, FAHRENHEIT }
+    public enum ElevationUnit { METERS, FEET }
     public enum Theme { SYSTEM, LIGHT, DARK }
 
     public static final int USE_GOOGLE_RIDING_SPEED = 0;
@@ -19,14 +21,25 @@ public final class Settings {
     public final int ridingSpeedKmh;
     public final Theme theme;
     public final int calmBelowKmh;
+    public final TemperatureUnit temperatureUnit;
+    public final ElevationUnit elevationUnit;
 
     public Settings(DistanceUnit distanceUnit, WindSpeedUnit windSpeedUnit,
                     int ridingSpeedKmh, Theme theme, int calmBelowKmh) {
+        this(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh,
+                TemperatureUnit.CELSIUS, ElevationUnit.METERS);
+    }
+
+    public Settings(DistanceUnit distanceUnit, WindSpeedUnit windSpeedUnit,
+                    int ridingSpeedKmh, Theme theme, int calmBelowKmh,
+                    TemperatureUnit temperatureUnit, ElevationUnit elevationUnit) {
         this.distanceUnit = distanceUnit;
         this.windSpeedUnit = windSpeedUnit;
         this.ridingSpeedKmh = ridingSpeedKmh;
         this.theme = theme;
         this.calmBelowKmh = calmBelowKmh;
+        this.temperatureUnit = temperatureUnit;
+        this.elevationUnit = elevationUnit;
     }
 
     public static Settings defaults() {
@@ -44,11 +57,14 @@ public final class Settings {
                 && windSpeedUnit == that.windSpeedUnit
                 && ridingSpeedKmh == that.ridingSpeedKmh
                 && theme == that.theme
-                && calmBelowKmh == that.calmBelowKmh;
+                && calmBelowKmh == that.calmBelowKmh
+                && temperatureUnit == that.temperatureUnit
+                && elevationUnit == that.elevationUnit;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh);
+        return Objects.hash(distanceUnit, windSpeedUnit, ridingSpeedKmh, theme, calmBelowKmh,
+                temperatureUnit, elevationUnit);
     }
 }

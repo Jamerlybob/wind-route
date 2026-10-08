@@ -51,4 +51,13 @@ public final class UnitFormatter {
         }
         return Math.round(distanceMeters / 1000.0 / ridingSpeedKmh * 3600.0);
     }
+
+    public static double temperature(double celsius, Settings.TemperatureUnit unit) {
+        return unit == Settings.TemperatureUnit.FAHRENHEIT
+                ? celsius * 9.0 / 5.0 + 32.0 : celsius;
+    }
+
+    public static double elevation(double meters, Settings.ElevationUnit unit) {
+        return unit == Settings.ElevationUnit.FEET ? meters * 3.28084 : meters;
+    }
 }

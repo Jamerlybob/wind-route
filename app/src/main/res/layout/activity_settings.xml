@@ -47,5 +47,24 @@
 
         <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_calm_below" />
         <Spinner android:id="@+id/setting_calm_below" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_temperature" />
+        <Spinner android:id="@+id/setting_temperature" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/setting_elevation" />
+        <Spinner android:id="@+id/setting_elevation" style="@style/Widget.WindRoute.SettingSpinner" />
+
+        <TextView
+            style="@style/Widget.WindRoute.SettingLabel"
+            android:text="@string/about_data_title" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/about_data_body"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 </ScrollView>

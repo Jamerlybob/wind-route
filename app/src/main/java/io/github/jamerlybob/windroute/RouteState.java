@@ -6,6 +6,7 @@ import java.util.List;
 
 import io.github.jamerlybob.windroute.route.GeoPoint;
 import io.github.jamerlybob.windroute.route.Route;
+import io.github.jamerlybob.windroute.elevation.ElevationProfile;
 import io.github.jamerlybob.windroute.weather.WindForecast;
 
 /**
@@ -24,6 +25,10 @@ public class RouteState extends ViewModel {
     /** Which points of the route the forecasts below belong to. */
     List<Integer> sampleIndexes;
     List<WindForecast> forecasts;
+    ElevationProfile elevation;
+    boolean elevationLoading;
+    boolean elevationFailed;
+    long departureEpochSeconds;
     /** Coordinates stay attached to the special "My location" text through rotation. */
     GeoPoint originCoordinates;
     GeoPoint destinationCoordinates;

@@ -18,6 +18,8 @@ public final class SettingsStore {
     private static final String RIDING_SPEED = "settings_riding_speed";
     private static final String THEME = "settings_theme";
     private static final String CALM_BELOW = "settings_calm_below";
+    private static final String TEMPERATURE = "settings_temperature";
+    private static final String ELEVATION = "settings_elevation";
 
     private SettingsStore() {
     }
@@ -44,7 +46,13 @@ public final class SettingsStore {
         if (calm < 0 || calm > 15) {
             calm = defaults.calmBelowKmh;
         }
-        return new Settings(distance, wind, riding, theme, calm);
+        Settings.TemperatureUnit temperature = readTemperatureUnit(
+                values.getString(TEMPERATURE, defaults.temperatureUnit.name()),
+                defaults.temperatureUnit);
+        Settings.ElevationUnit elevation = readElevationUnit(
+                values.getString(ELEVATION, defaults.elevationUnit.name()),
+                defaults.elevationUnit);
+        return new Settings(distance, wind, riding, theme, calm, temperature, elevation);
     }
 
     public static void save(Context context, Settings settings) {
@@ -55,6 +63,8 @@ public final class SettingsStore {
                 .putInt(RIDING_SPEED, settings.ridingSpeedKmh)
                 .putString(THEME, settings.theme.name())
                 .putInt(CALM_BELOW, settings.calmBelowKmh)
+                .putString(TEMPERATURE, settings.temperatureUnit.name())
+                .putString(ELEVATION, settings.elevationUnit.name())
                 .apply();
     }
 
@@ -94,6 +104,24 @@ public final class SettingsStore {
     private static Settings.Theme readTheme(String value, Settings.Theme fallback) {
         try {
             return Settings.Theme.valueOf(value);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return fallback;
+        }
+    }
+
+    private static Settings.TemperatureUnit readTemperatureUnit(
+            String value, Settings.TemperatureUnit fallback) {
+        try {
+            return Settings.TemperatureUnit.valueOf(value);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return fallback;
+        }
+    }
+
+    private static Settings.ElevationUnit readElevationUnit(
+            String value, Settings.ElevationUnit fallback) {
+        try {
+            return Settings.ElevationUnit.valueOf(value);
         } catch (IllegalArgumentException | NullPointerException e) {
             return fallback;
         }

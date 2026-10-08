@@ -81,6 +81,15 @@ public final class DepartureScorer {
     public static List<Entry> score(Route route, List<Integer> sampleIndexes,
                                     List<WindForecast> forecasts,
                                     long firstDepartureEpochSeconds, int hours) {
+        return score(route, sampleIndexes, forecasts, firstDepartureEpochSeconds,
+                hours, WindMath.CALM_BELOW_KMH);
+    }
+
+    /** Uses the same calm threshold as the coloured route shown on the map. */
+    public static List<Entry> score(Route route, List<Integer> sampleIndexes,
+                                    List<WindForecast> forecasts,
+                                    long firstDepartureEpochSeconds, int hours,
+                                    double calmBelowKmh) {
         if (sampleIndexes.size() != forecasts.size()) {
             throw new IllegalArgumentException("Each sample point needs one forecast.");
         }
@@ -90,7 +99,8 @@ public final class DepartureScorer {
             if (!forecastCoversRide(forecasts, departure, route.durationSeconds)) {
                 continue;
             }
-            RouteWind wind = RouteWind.analyze(route, sampleIndexes, forecasts, departure);
+            RouteWind wind = RouteWind.analyze(route, sampleIndexes, forecasts, departure,
+                    route.durationSeconds, calmBelowKmh);
             RideWeather weather = RideWeather.analyze(
                     route, sampleIndexes, forecasts, departure);
             entries.add(new Entry(departure, wind, weather));

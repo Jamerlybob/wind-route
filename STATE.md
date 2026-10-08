@@ -1,6 +1,6 @@
 # STATE
 
-**Updated:** 2026-10-08
+**Updated:** 2026-10-09
 
 ## Where it is
 
@@ -13,11 +13,8 @@ with recent places, swap and the other direction's wind, a settings screen
 (units, riding speed, theme, calm threshold), the last route restored on a
 cold start with no Routes call, Google's cycling notice always shown.
 
-In the code with tests but NOT on screen yet (106 unit tests pass):
+In the code with tests but NOT on screen yet:
 
-- `weather/` 8 day forecast with rain and temperature, `RideWeather`
-- `wind/DepartureScorer`, `GustWarnings`, `PowerModel` (wind in minutes)
-- `elevation/` client, profile, `ClimbDetector`, `ClimbWind`
 - `gpx/` parser and writer, `trip/DaySplitter`, `nav/RouteProgress`
 - `poi/` water, food, camping and bike shops from Overpass
 - A new launcher icon (not yet looked at on a device)
@@ -36,17 +33,17 @@ two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-1. Finish `M1-review-fixes.md` item 3: the comment pass is only partly done
-   (`RouteMapRenderer`, `RouteStore` and `SettingsActivity` are still thin).
-   Items 1 and 2 are done and checked on the emulator.
-2. Build `docs/specs/M2-M3-screen.md`: bottom sheet, departure picker, best
-   time strip, rain, wind cost, gust warnings, hills profile and climbs.
-3. Then `docs/specs/M5-trips-screen.md` and `docs/specs/M4-riding.md`, one
-   Codex run each, at medium effort, reviewed and run on the emulator in
-   between. Milestone 4's audio and GPS need James's phone to confirm.
+Milestones 2 and 3 are on screen (2026-10-09, run on the emulator): bottom
+sheet, collapsing search line, departure date and time picker, best time
+strip, weather on the ride, wind cost in minutes, gust warnings, elevation
+profile coloured by wind, climbs and climbs into the wind, tap a stretch.
 
-James asked on 2026-10-08 for all of this to be finished by Codex once its
-limit resets (23:32).
+In order, one Codex run each at medium effort, reviewed and run on the
+emulator in between:
+
+1. `docs/specs/M2-M3-polish.md` (small; includes the unfinished comment pass)
+2. `docs/specs/M5-trips-screen.md`
+3. `docs/specs/M4-riding.md` (audio and real GPS need James's phone)
 
 ## Known gaps
 

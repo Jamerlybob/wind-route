@@ -33,4 +33,15 @@ public final class Route {
         return new Route(reversedPoints, distanceMeters, durationSeconds,
                 new ArrayList<>(warnings));
     }
+
+    /**
+     * Returns the same route with the duration used by every ride analysis.
+     *
+     * <p>The geometry and Google's required warnings do not change when a rider
+     * chooses a usual speed. Making a new immutable value here prevents one
+     * feature from quietly falling back to Google's original duration.
+     */
+    public Route withDuration(long effectiveDurationSeconds) {
+        return new Route(points, distanceMeters, effectiveDurationSeconds, warnings);
+    }
 }

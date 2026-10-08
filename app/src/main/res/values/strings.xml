@@ -4,8 +4,8 @@
     <string name="hint_destination">To</string>
     <string name="button_go">Show wind</string>
     <string name="depart_now">Now</string>
-    <string name="depart_1h">In 1 h</string>
-    <string name="depart_3h">In 3 h</string>
+    <string name="depart_choose">Leave at…</string>
+    <string name="search_collapsed">%1$s → %2$s · %3$s</string>
     <string name="my_location">My location</string>
     <string name="use_my_location">Use my location</string>
     <string name="swap_places">Swap start and finish</string>
@@ -51,6 +51,51 @@
     <string name="speed_knots">%1$.0f kn</string>
 
     <string name="cycling_notice">Cycling routes are in beta and might sometimes miss clear bicycling paths.</string>
+    <string name="weather_title">Weather on the ride</string>
+    <string name="gust_warnings_title">Gust warnings</string>
+    <string name="hills_title">Hills</string>
+    <string name="hills_loading">Loading elevation…</string>
+    <string name="hills_unavailable">Elevation is unavailable; the wind result is still complete.</string>
+    <string name="hills_none">No sustained climbs detected.</string>
+    <string name="best_departure">Best: leave at %1$s, %2$s, %3$s</string>
+    <string name="dry">dry</string>
+    <string name="rain_possible">rain possible</string>
+    <string name="rain_chance">%1$.0f%% chance of rain</string>
+    <string name="weather_temperature">%1$.0f to %2$.0f degrees.</string>
+    <string name="weather_dry">No rain expected.</string>
+    <string name="weather_rain">%1$.0f%% chance of rain, up to %2$.1f mm an hour around %3$s.</string>
+    <string name="weather_rain_chance_only">%1$.0f%% chance of rain.</string>
+    <string name="weather_rain_amount_only">Rain up to %1$.1f mm an hour around %2$s.</string>
+    <string name="weather_unknown_temperature">Temperature unavailable.</string>
+    <string name="wind_no_difference">The wind makes no real difference</string>
+    <string name="wind_cost_info">Wind estimate assumptions</string>
+    <string name="wind_cost_assumptions">This simple flat-road estimate assumes an upright rider, 85 kg for rider and bike, ordinary road tyres, and the same effort as in still air.</string>
+    <string name="gust_warning">Gusts to %1$s from the %2$s for %3$s, starting at %4$s</string>
+    <string name="side_left">left</string>
+    <string name="side_right">right</string>
+    <string name="ascent_metres">%1$.0f m up</string>
+    <string name="ascent_feet">%1$.0f ft up</string>
+    <string name="climb_line">Climb %1$d at %2$s: %3$s, %4$s, %5$.0f%% (max %6$.0f%%)</string>
+    <string name="climb_headwind">\u00A0— into a %1$s headwind</string>
+    <string name="height_metres">%1$.0f m</string>
+    <string name="height_feet">%1$.0f ft</string>
+    <string name="stretch_facts">At %1$s · %2$s · wind %3$s · %4$s · crosswind %5$s · gust %6$s%7$s</string>
+    <string name="stretch_gradient"> · gradient %1$.0f%%</string>
+    <string name="arrive_time">arrive %1$s</string>
+    <string name="best_label">best</string>
+    <string name="details_with_extras">%1$s · %2$s</string>
+    <plurals name="wind_adds">
+        <item quantity="one">The wind adds about %1$d minute</item>
+        <item quantity="other">The wind adds about %1$d minutes</item>
+    </plurals>
+    <plurals name="wind_saves">
+        <item quantity="one">The wind saves about %1$d minute</item>
+        <item quantity="other">The wind saves about %1$d minutes</item>
+    </plurals>
+    <plurals name="climbs_into_wind">
+        <item quantity="one">%1$d climb into the wind</item>
+        <item quantity="other">%1$d climbs into the wind</item>
+    </plurals>
 
     <string name="settings_title">Settings</string>
     <string name="back">Back</string>
@@ -59,6 +104,10 @@
     <string name="setting_riding_speed">Usual riding speed</string>
     <string name="setting_theme">Theme</string>
     <string name="setting_calm_below">Calm below</string>
+    <string name="setting_temperature">Temperature</string>
+    <string name="setting_elevation">Elevation</string>
+    <string name="about_data_title">About the data</string>
+    <string name="about_data_body">Weather and elevation from Open-Meteo.com. Elevation data from Copernicus DEM GLO-90. Routes and maps from Google.</string>
     <string name="riding_speed_google">Use Google’s estimate</string>
 
     <string-array name="distance_options">
@@ -75,5 +124,13 @@
         <item>Follow system</item>
         <item>Light</item>
         <item>Dark</item>
+    </string-array>
+    <string-array name="temperature_options">
+        <item>Celsius (°C)</item>
+        <item>Fahrenheit (°F)</item>
+    </string-array>
+    <string-array name="elevation_options">
+        <item>Metres (m)</item>
+        <item>Feet (ft)</item>
     </string-array>
 </resources>
