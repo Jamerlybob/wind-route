@@ -41,9 +41,12 @@ two hours, so run fewer at once or at medium effort.
    Items 1 and 2 are done and checked on the emulator.
 2. Build `docs/specs/M2-M3-screen.md`: bottom sheet, departure picker, best
    time strip, rain, wind cost, gust warnings, hills profile and climbs.
-3. Then Milestone 5 screens (GPX import, trip days, places) and Milestone 4
-   (riding with it). Milestone 4 needs the voice-cue research in
-   `docs/RESEARCH.md` done first and a real phone to test on.
+3. Then `docs/specs/M5-trips-screen.md` and `docs/specs/M4-riding.md`, one
+   Codex run each, at medium effort, reviewed and run on the emulator in
+   between. Milestone 4's audio and GPS need James's phone to confirm.
+
+James asked on 2026-10-08 for all of this to be finished by Codex once its
+limit resets (23:32).
 
 ## Known gaps
 

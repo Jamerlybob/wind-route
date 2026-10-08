@@ -42,14 +42,32 @@ WindRoute should not try to out-plan these. It should import their routes
 Nobody found so far combines these with wind: "this climb is into a headwind"
 is the cue WindRoute can own.
 
+## Bikepacking (second pass, 2026-10-08)
+
+No rider survey turned up; this is what the tools offer and what guides say.
+
+- **Days:** Komoot's paid multi-day planner splits a route into as many days
+  as you like with a slider, and can reverse it. That slider is the model for
+  WindRoute's trip screen.
+- **Water and resupply:** Komoot shows public water points, bike shops,
+  campsites and toilets. Guides say to plan the trip around water and
+  resupply first, and warn that a water point on the map may be dry.
+  WindRoute should show the longest gap without water or food, and not
+  promise the tap works.
+- **Sleeping:** campsites and hostels at the end of each stage.
+- **Offline:** every serious app saves the route for use without signal.
+
+## Voice cues (second pass, 2026-10-08)
+
+Nothing published was found on how Komoot or Google Maps word or time their
+spoken instructions. Another app's forum mentions fixed distances before a
+turn (300 m, 1 km, 2 km, 5 km). WindRoute's cue rules in
+`docs/specs/M4-riding.md` are therefore our own and need trying on a ride.
+
 ## Not yet researched
 
-- Bikepacking apps in depth. The search for this returned nothing useful.
-  Look at bikepacking.com's route tools, cycle.travel, Komoot multi-day,
-  Gaia GPS and OsmAnd before designing Milestone 5: what do riders want for
-  water, resupply, camping and daily stages?
-- How voice cues are worded and timed in Komoot and Google Maps cycling.
 - App store reviews of myWindsock and Epic Ride Weather for what annoys people.
+- Ride with GPS's own multi-day and resupply tools.
 
 ## Sources
 
@@ -64,4 +82,9 @@ is the cue WindRoute can own.
 - https://the5krunner.com/garmin-features/navigation/climbpro/
 - https://www.bikeradar.com/news/wahoo-summit-freeride/
 - https://developers.google.com/maps/documentation/routes/reference/rest/v2/RouteTravelMode
-- https://open-meteo.com/en/docs
+- https://open-meteo.com/en/docs- https://www.singletracks.com/mtb-news/bikepack-around-the-globe-with-new-komoot-premium-multi-day-routing-features/
+- https://www.adventure-journal.com/2023/04/so-you-wanna-plan-a-bikepacking-route-we-have-advice/
+- https://forum.kurviger.com/t/voice-guidance-after-instruction-points/1912
+- https://developer.android.com/about/versions/14/changes/fgs-types-required
+- https://dev.overpass-api.de/overpass-doc/en/preface/commons.html
+- https://open-meteo.com/en/docs/elevation-api
