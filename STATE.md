@@ -75,6 +75,10 @@ Getting builds to his phone: `SendUserFile` was not available this session,
 so the APK was copied to `Desktop\WindRoute` on the laptop. He may plug the
 phone in with USB debugging; check `adb devices` and install directly if so.
 
+The phone is an OPPO A5. On 2026-10-08 it connected for file transfer only
+(USB debugging off, so `adb devices` was empty). The theme build was copied
+into its Download folder over MTP for James to install by hand.
+
 ## Not done yet, on purpose
 
 - The fortnightly scheduled build James asked for is not set up. Set it up
