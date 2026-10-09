@@ -43,18 +43,67 @@ two hours, so run fewer at once or at medium effort.
 
 ## Next action
 
-1. James installs the build on his phone and rides or walks a short Google
-   route with "Start ride": does it speak, does the banner count down to the
-   turn, does it keep going with the screen off, does Stop in the
-   notification work. Everything in riding mode that moves is unverified
-   until then.
-2. Small polish seen on 2026-10-09 and not done: the places headings are
-   lower case ("water (12)") and unnamed taps read "Unnamed water"; ending a
-   ride should be checked to return the map to the whole route
+James cleared the session on 2026-10-09 without testing the riding build
+("I won't do that stuff yet"). He has the APK (commit 03902fc). Start the
+next session by asking whether he has tried it.
+
+### For James to do
+
+1. Install the riding build, pick a short Google route, tap "Start ride" and
+   walk or ride a few hundred metres. Report: does it speak, does the banner
+   count down to the turn, does it keep going with the screen off, does Stop
+   in the notification work, and above all does it crash.
+2. On the same outing: do address suggestions appear while typing, and is
+   "My location" right with real GPS.
+3. The Google console steps (reminder set for 2026-10-15): upgrade the
+   billing account, cap Routes at about 30 requests a day, add a budget
+   alert, restrict the key. While there, look at which SKU the Routes calls
+   are billed under now that the request asks for `routes.legs.steps`.
+
+### For Claude (with Codex) to do
+
+Riding mode, all unverified until it has been seen moving:
+1. Get a moving ride on screen. Either find why the emulator dies in ride
+   mode (see Known gaps), try a different AVD or system image, or install
+   on James's phone over USB debugging and replay there.
+2. Then check, with screenshots: the banner changing to the next turn, the
+   very short steps Google returns (6 m, 8 m, 21 m) not flashing past, the
+   off-route banner after 10 s and "Re-route from here" spending exactly one
+   Routes call, arrival and the ride summary, the notification and its Stop
+   action, the ride surviving the Activity being destroyed, and the map
+   going back to the whole route when the ride ends
    (`RouteMapRenderer.setRideMode`, written by Claude, compiled, not seen).
-3. Check the Routes SKU in the Cloud billing report: the field mask now asks
-   for `routes.legs.steps`, and the docs do not say whether that keeps the
-   request on the cheapest tier.
+3. A GPX route in ride mode (no steps): position, wind and climb cues only.
+4. The cue settings screen (which cues, how early, "less talk") has not been
+   opened on the emulator at all.
+5. A far-away first fix: the emulator's default position in California
+   showed "1.5 km left, 100 m, turn right" on an Auckland route before
+   off-route could trigger. Decide what the banner should say when the rider
+   is nowhere near the route.
+6. Read `RideService`, `RideScreenController`, `CuePlanner` and
+   `CuePlanFactory` properly. Claude reviewed the first version of
+   `RideService` line by line but only skimmed the second pass (the comment
+   and structure rewrite) and has not read the cue rules against
+   `docs/specs/M4-riding.md` section 4.
+
+Trips and places:
+7. Trip polish from `docs/specs/M5-polish.md` not yet seen on screen: item 2
+   (search line for a trip day and a GPX import), 4 (no "0.0 mm" on day
+   cards), 6 (tapping "Best overall start" moves the trip), 7 (a day outside
+   the forecast says so). Use the 240 km test GPX; make a new one if the
+   scratch copy is gone.
+8. Places list: headings are lower case ("water (12)"), unnamed taps read
+   "Unnamed water", and tapping a place, "Add to export" and the longest
+   gap without water or food per day have not been checked. Bike shops are
+   in the roadmap line but check `PoiKind` actually includes them.
+9. Saved trips opened without a connection, and the forecast-age message.
+
+Older gaps still open (details under Known gaps): gust warnings never seen
+on screen, the legacy WebP launcher icons, GPX import of a real Komoot or
+Ride with GPS file on a device, the fortnightly scheduled build.
+
+When riding mode has been confirmed on the phone, tick Milestone 4 in
+`docs/ROADMAP.md`.
 
 The Codex session for this work is `01a11cdf-ba06-74b1-b283-a8181b280ea2`
 (`<newer codex.exe> exec resume <id> -m gpt-6.1-sol -c
