@@ -83,6 +83,10 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     private final ExecutorService background = Executors.newSingleThreadExecutor();
     private final Handler mainThread = new Handler(Looper.getMainLooper());
 
+    private boolean coldStart;
+    private boolean lastRouteAvailable;
+    private TodayStopController todayStop;
+    private WindLayersController windLayers;
     private GoogleMap map;
     private RouteMapRenderer renderer;
     private MaterialAutoCompleteTextView originInput;
@@ -141,6 +145,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         state = new ViewModelProvider(this).get(RouteState.class);
+        coldStart = !state.screenInitialized;
+        state.screenInitialized = true;
         routeStore = new RouteStore(this);
         state.exportWaypoints = routeStore.exportWaypoints();
         settings = SettingsStore.load(this);
@@ -163,7 +169,18 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
-        restoreLastRouteIfNeeded();
+        if (state.route != null) restoreLastRouteIfNeeded();
+        else if (getIntent().getLongExtra("trip_departure", 0) > 0) restoreLastRouteIfNeeded();
+        else {
+            RouteStore.SavedRoute last = routeStore.loadRoute();
+            if (last != null) {
+                lastRouteAvailable = true;
+                com.google.android.material.chip.Chip chip = findViewById(R.id.last_route);
+                chip.setText(getString(R.string.last_route, last.origin, last.destination));
+                chip.setVisibility(View.VISIBLE);
+                chip.setOnClickListener(v -> { chip.setVisibility(View.GONE); restoreLastRouteIfNeeded(); });
+            }
+        }
         long tripDeparture = getIntent().getLongExtra("trip_departure", 0);
         if (tripDeparture > 0) state.departureEpochSeconds = tripDeparture;
         if (Intent.ACTION_VIEW.equals(getIntent().getAction()) && getIntent().getData() != null) {
@@ -174,10 +191,33 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         }
     }
 
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedState) {
+        super.onRestoreInstanceState(savedState);
+        if (coldStart && state.route == null) {
+            // Android restores EditText contents even after process death. A new
+            // ViewModel means a fresh start; a retained one keeps rotation drafts.
+            originInput.setText("");
+            destinationInput.setText("");
+            state.originCoordinates = null;
+            state.destinationCoordinates = null;
+            findViewById(R.id.last_route).setVisibility(lastRouteAvailable ? View.VISIBLE : View.GONE);
+        }
+    }
+
     private void bindViews() {
         originInput = findViewById(R.id.origin);
         destinationInput = findViewById(R.id.destination);
         goButton = findViewById(R.id.go);
+        android.text.TextWatcher newSearch = new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence text, int start, int before, int count) {
+                if (count > 0) findViewById(R.id.last_route).setVisibility(View.GONE);
+            }
+            @Override public void afterTextChanged(android.text.Editable text) { }
+        };
+        originInput.addTextChangedListener(newSearch);
+        destinationInput.addTextChangedListener(newSearch);
         progress = findViewById(R.id.progress);
         searchCard = findViewById(R.id.search_card);
         summaryCard = findViewById(R.id.summary_card);
@@ -261,6 +301,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void showRideMode() {
+        if (windLayers != null) windLayers.setRiding(true);
         rideScreen.show(state.route, rideService == null ? null : rideService.analysis(), settings, renderer);
     }
 
@@ -271,6 +312,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void leaveRideMode() {
+        if (windLayers != null) windLayers.setRiding(false);
         rideScreen.hide(state.route != null, renderer);
         detachRide();
     }
@@ -333,6 +375,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     @Override
     protected void onResume() {
         super.onResume();
+        if (windLayers != null) windLayers.setActive(true);
         Settings latest = SettingsStore.load(this);
         if (settings != null && !latest.equals(settings)) {
             settings = latest;
@@ -340,6 +383,17 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         } else {
             settings = latest;
         }
+    }
+
+    @Override protected void onPause() {
+        if (windLayers != null) windLayers.setActive(false);
+        if (map != null) {
+            com.google.android.gms.maps.model.CameraPosition camera = map.getCameraPosition();
+            getSharedPreferences("map_camera", MODE_PRIVATE).edit()
+                    .putLong("lat", Double.doubleToLongBits(camera.target.latitude))
+                    .putLong("lng", Double.doubleToLongBits(camera.target.longitude)).putFloat("zoom",camera.zoom).apply();
+        }
+        super.onPause();
     }
 
     @Override protected void onStart() {
@@ -370,6 +424,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             unbindService(rideConnection);
             rideBound = false;
         }
+        if (todayStop != null) todayStop.destroy();
+        if (windLayers != null) windLayers.destroy();
         background.shutdownNow();
         super.onDestroy();
     }
@@ -378,17 +434,52 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
-        if (isNight()) {
-            map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style_night));
-        }
+        map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this,
+                isNight() ? R.raw.map_style_night : R.raw.map_style_day));
         renderer = new RouteMapRenderer(this, map, findViewById(R.id.main),
                 searchCard, summaryCard);
+        todayStop = new TodayStopController(this, map);
+        windLayers = new WindLayersController(this, map);
+        windLayers.setCameraIdle(renderer::redrawArrows);
+        windLayers.setActive(true);
+        android.content.SharedPreferences camera = getSharedPreferences("map_camera", MODE_PRIVATE);
+        if (state.route == null) map.moveCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(
+                new com.google.android.gms.maps.model.LatLng(Double.longBitsToDouble(camera.getLong("lat", Double.doubleToLongBits(-36.85))),
+                        Double.longBitsToDouble(camera.getLong("lng", Double.doubleToLongBits(174.76)))), camera.getFloat("zoom", 10)));
         enableMyLocationIfAllowed();
+        if (state.route == null) centerOnLastLocation();
         showWind();
         if (rideService != null && rideService.isRunning()) {
             showRideMode();
             if (lastRideUpdate != null) onRideUpdate(lastRideUpdate);
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void centerOnLastLocation() {
+        if (!currentLocation.hasPermission()) return;
+        try {
+            android.location.LocationManager manager=(android.location.LocationManager)getSystemService(LOCATION_SERVICE);
+            android.location.Location best=null;
+            for(String provider:manager.getProviders(true)) {
+                android.location.Location fix=manager.getLastKnownLocation(provider);
+                if(fix!=null && (best==null || fix.getTime()>best.getTime())) best=fix;
+            }
+            if(best!=null) {
+                com.google.android.gms.maps.model.LatLng position=new com.google.android.gms.maps.model.LatLng(best.getLatitude(),best.getLongitude());
+                map.moveCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(position,11));
+                windLayers.setRider(position);
+            }
+            String provider=manager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                    ? android.location.LocationManager.GPS_PROVIDER : android.location.LocationManager.NETWORK_PROVIDER;
+            androidx.core.location.LocationManagerCompat.getCurrentLocation(manager,provider,
+                    (android.os.CancellationSignal)null,ContextCompat.getMainExecutor(this),fix->{
+                        if(fix==null || isDestroyed() || state.route!=null) return;
+                        com.google.android.gms.maps.model.LatLng position=new com.google.android.gms.maps.model.LatLng(fix.getLatitude(),fix.getLongitude());
+                        map.moveCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(position,11));
+                        windLayers.setRider(position);
+                    });
+        } catch(SecurityException | IllegalArgumentException ignored) { }
     }
 
     private void restoreLastRouteIfNeeded() {
@@ -428,7 +519,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         int generation = ++searchGeneration;
         background.execute(() -> {
             try {
-                RouteForecastLoader.Result weather = RouteForecastLoader.load(route);
+                RouteForecastLoader.Result weather = RouteForecastLoader.load(route, state.departureEpochSeconds > 0
+                        ? state.departureEpochSeconds : System.currentTimeMillis()/1000);
                 mainThread.post(() -> {
                     if (generation != searchGeneration || isDestroyed()) {
                         return;
@@ -446,6 +538,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     /** The only method that calls Google Routes, reached by an explicit tap. */
     private void search() {
+        findViewById(R.id.last_route).setVisibility(View.GONE);
         if (busy) {
             return;
         }
@@ -477,7 +570,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             try {
                 Route route = new RoutesClient(BuildConfig.MAPS_API_KEY)
                         .fetch(originWaypoint, destinationWaypoint);
-                RouteForecastLoader.Result weather = RouteForecastLoader.load(route);
+                RouteForecastLoader.Result weather = RouteForecastLoader.load(route, state.departureEpochSeconds > 0
+                        ? state.departureEpochSeconds : System.currentTimeMillis()/1000);
                 mainThread.post(() -> acceptNewRoute(generation, origin, destination,
                         myLocation, route, weather));
             } catch (Exception e) {
@@ -595,6 +689,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
 
     /** Recomputes presentation from retained data; no network call occurs here. */
     private void showWind() {
+        if (windLayers != null) windLayers.setRoute(state.route != null, state.departureEpochSeconds);
         if (renderer != null && rideService != null && rideService.isRunning()) {
             renderer.setRideMode(true);
             RideAnalysis ride = rideService.analysis();
@@ -623,6 +718,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 sheetController.shortWindCost(analysis.power.differenceMinutes),
                 sheetController.collapsedHeight());
         renderer.showPlaces(state.places);
+        if (todayStop != null) todayStop.show(analysis, state.places);
+        if (windLayers != null) windLayers.redraw();
         searchController.showRoute(originInput.getText().toString(),
                 destinationInput.getText().toString(), analysis.departureEpochSeconds);
     }
@@ -691,6 +788,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             // A non-fit-to-contents sheet expands to y=0 unless its offset is
             // explicit, regardless of the margin used for its resting layout.
             sheetController.setExpandedOffset(bars.top);
+            sheetController.setBottomInset(safeBottom);
             return insets;
         });
     }
@@ -885,7 +983,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         TripStore store = new TripStore(this);
         List<TripStore.SavedTrip> trips = store.list();
         if (trips.isEmpty()) {
-            showMessage(getString(R.string.no_saved_trips));
+            new AlertDialog.Builder(this).setTitle(R.string.no_saved_trips)
+                    .setMessage(R.string.no_saved_trips_help)
+                    .setPositiveButton(android.R.string.ok, null).show();
             return;
         }
         String[] names = new String[trips.size()];
@@ -918,7 +1018,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         background.execute(() -> {
             try {
                 List<Poi> found = OverpassClient.fetch(lookupRoute.points,
-                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING), 500);
+                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING, PoiKind.TOWN), 500);
                 List<PoiAlongRoute> located = PoiAlongRoute.locate(lookupRoute.points, found);
                 mainThread.post(() -> {
                     if (isDestroyed()) return;

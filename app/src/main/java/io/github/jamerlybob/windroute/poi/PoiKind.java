@@ -16,6 +16,7 @@ public enum PoiKind {
             {"tourism", "camp_site"},
             {"tourism", "caravan_site"}
     }),
+    TOWN(new String[][]{{"place", "city"}, {"place", "town"}, {"place", "village"}}),
     BIKE_SHOP(new String[][]{{"shop", "bicycle"}}),
     TOILETS(new String[][]{{"amenity", "toilets"}}),
     SHELTER(new String[][]{{"amenity", "shelter"}});

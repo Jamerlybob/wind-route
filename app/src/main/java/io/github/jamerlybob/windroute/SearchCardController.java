@@ -47,6 +47,7 @@ public final class SearchCardController {
     }
 
     public void expand() {
+        ((com.google.android.material.card.MaterialCardView) activity.findViewById(R.id.search_card)).setRadius(dp(24));
         expanded.setVisibility(View.VISIBLE);
         collapsed.setVisibility(View.GONE);
     }
@@ -57,6 +58,7 @@ public final class SearchCardController {
         if (!hasRoute) {
             return;
         }
+        ((com.google.android.material.card.MaterialCardView) activity.findViewById(R.id.search_card)).setRadius(dp(32));
         expanded.setVisibility(View.GONE);
         collapsed.setVisibility(View.VISIBLE);
     }
@@ -68,6 +70,8 @@ public final class SearchCardController {
         }
         return false;
     }
+
+    private float dp(int value) { return value * activity.getResources().getDisplayMetrics().density; }
 
     private static String shortPlace(String place) {
         // Geocoder results put the recognisable place first. Keeping that part

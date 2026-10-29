@@ -12,8 +12,53 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <io.github.jamerlybob.windroute.WindFlowView android:id="@+id/wind_flow"
+        android:layout_width="match_parent" android:layout_height="match_parent" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/layers"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="72dp" android:layout_height="72dp" android:layout_gravity="end|top"
+        android:layout_marginTop="340dp" android:layout_marginEnd="12dp"
+        android:contentDescription="@string/layers" android:text="@string/layers" android:textSize="11sp"
+        android:padding="8dp" app:backgroundTint="@color/map_control_surface" app:icon="@drawable/ic_layers"
+        app:iconGravity="textTop" app:cornerRadius="36dp" app:iconPadding="4dp" />
+    <com.google.android.material.card.MaterialCardView android:id="@+id/wind_legend_card"
+        android:layout_width="224dp" android:layout_height="wrap_content" android:layout_gravity="start|top"
+        android:layout_marginStart="12dp" android:visibility="gone" app:cardCornerRadius="14dp"
+        app:cardBackgroundColor="@color/map_control_surface" app:cardElevation="2dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="12dp">
+            <View android:id="@+id/wind_legend_ramp" android:layout_width="match_parent" android:layout_height="8dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+                <TextView android:id="@+id/wind_legend_low" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textAppearance="?attr/textAppearanceLabelSmall" />
+                <TextView android:id="@+id/wind_legend_mid" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:gravity="center" android:textAppearance="?attr/textAppearanceLabelSmall" />
+                <TextView android:id="@+id/wind_legend_high" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:gravity="end" android:textAppearance="?attr/textAppearanceLabelSmall" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView android:id="@+id/wind_today_card"
+        style="@style/Widget.WindRoute.Card" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_gravity="bottom" android:layout_margin="24dp"
+        app:cardCornerRadius="24dp" app:cardBackgroundColor="?attr/colorSurfaceContainer">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:padding="14dp">
+            <io.github.jamerlybob.windroute.WindBadgeView android:id="@+id/wind_today_badge"
+                android:layout_width="76dp" android:layout_height="76dp" android:layout_marginEnd="12dp" />
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/where_ride_title" android:textAppearance="?attr/textAppearanceTitleMedium" />
+                <TextView android:id="@+id/wind_today" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" android:text="@string/wind_loading" />
+                <TextView android:id="@+id/wind_today_advice" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBodySmall" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/wind_today_credit" android:textAppearance="?attr/textAppearanceLabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant" android:layout_marginTop="6dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/search_card"
+        app:cardCornerRadius="32dp" app:cardBackgroundColor="@color/map_control_surface"
         style="@style/Widget.WindRoute.Card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -34,6 +79,8 @@
                 android:paddingEnd="0dp"
                 android:visibility="gone">
 
+                <ImageView android:layout_width="24dp" android:layout_height="24dp"
+                    android:layout_marginEnd="12dp" android:src="@drawable/ic_search" android:importantForAccessibility="no" />
                 <TextView
                     android:id="@+id/search_collapsed_text"
                     android:layout_width="0dp"
@@ -147,6 +194,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="@string/button_go" />
+                <com.google.android.material.chip.Chip android:id="@+id/last_route"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/progress"
                     android:layout_width="match_parent"
@@ -225,7 +274,7 @@
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/summary_card"
+        android:id="@+id/summary_card" app:cardCornerRadius="28dp" app:cardBackgroundColor="@color/map_control_surface"
         style="@style/Widget.WindRoute.Card"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -252,9 +301,17 @@
                 <View android:layout_width="40dp" android:layout_height="4dp"
                     android:layout_gravity="center_horizontal" android:layout_marginBottom="6dp"
                     android:background="?attr/colorOutlineVariant" />
-                <TextView android:id="@+id/headline" android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginEnd="8dp">
+                    <TextView android:id="@+id/headline" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        app:drawableStartCompat="@drawable/ic_wind" android:drawablePadding="8dp"
+                        android:textAppearance="@style/TextAppearance.WindRoute.Headline" />
+                    <TextView android:id="@+id/verdict_sentence" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceBodyMedium" android:textColor="?attr/colorOnSurfaceVariant" android:layout_marginTop="6dp" />
+                </LinearLayout>
+                <io.github.jamerlybob.windroute.WindBadgeView android:id="@+id/wind_badge"
+                    android:layout_width="88dp" android:layout_height="88dp" />
+                </LinearLayout>
                 <TextView android:id="@+id/details_primary" android:layout_width="match_parent"
                     android:layout_height="wrap_content" android:layout_marginTop="2dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
@@ -280,13 +337,8 @@
                     <View android:id="@+id/bar_tailwind" android:layout_width="0dp" android:layout_height="match_parent" android:background="@color/wind_tailwind" />
                     <View android:id="@+id/bar_calm" android:layout_width="0dp" android:layout_height="match_parent" android:background="@color/wind_calm" />
                 </LinearLayout>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp" android:orientation="horizontal">
-                    <TextView android:id="@+id/legend_headwind" style="@style/Widget.WindRoute.Legend" app:drawableStartCompat="@drawable/dot_headwind" />
-                    <TextView android:id="@+id/legend_crosswind" style="@style/Widget.WindRoute.Legend" app:drawableStartCompat="@drawable/dot_crosswind" />
-                    <TextView android:id="@+id/legend_tailwind" style="@style/Widget.WindRoute.Legend" app:drawableStartCompat="@drawable/dot_tailwind" />
-                    <TextView android:id="@+id/legend_calm" style="@style/Widget.WindRoute.Legend" app:drawableStartCompat="@drawable/dot_calm" />
-                </LinearLayout>
+                <io.github.jamerlybob.windroute.WindShareLegendView android:id="@+id/share_legend"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" />
                 <TextView android:id="@+id/warnings" android:layout_width="match_parent"
                     android:layout_height="wrap_content" android:layout_marginTop="6dp"
                     android:maxLines="2" android:textAppearance="?attr/textAppearanceBodySmall"
@@ -302,7 +354,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:fillViewport="true">
+                android:fillViewport="false">
                 <LinearLayout
                     android:id="@+id/summary_content"
                     android:layout_width="match_parent"
@@ -311,7 +363,7 @@
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
                     android:paddingBottom="32dp">
-                    <TextView android:id="@+id/best_summary" style="@style/Widget.WindRoute.SectionTitle" />
+                    <TextView android:id="@+id/best_summary" style="@style/Widget.WindRoute.SectionTitle" android:layout_marginTop="8dp" />
                     <io.github.jamerlybob.windroute.DepartureStripView
                         android:id="@+id/departure_strip" android:layout_width="match_parent"
                         android:layout_height="180dp" android:layout_marginTop="4dp" />
@@ -333,7 +385,10 @@
                         <LinearLayout android:id="@+id/gust_list" android:layout_width="match_parent"
                             android:layout_height="wrap_content" android:orientation="vertical" />
                     </LinearLayout>
-                    <TextView style="@style/Widget.WindRoute.SectionTitle" android:text="@string/hills_title" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginTop="18dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/elevation_wind_title" android:textAppearance="?attr/textAppearanceTitleMedium" />
+                        <TextView android:id="@+id/elevation_totals" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?attr/textAppearanceBodySmall" android:textColor="?attr/colorOnSurfaceVariant" />
+                    </LinearLayout>
                     <TextView android:id="@+id/hills_status" style="@style/Widget.WindRoute.SectionBody" />
                     <io.github.jamerlybob.windroute.ElevationProfileView
                         android:id="@+id/elevation_profile" android:layout_width="match_parent"

@@ -136,7 +136,8 @@ public class RouteWindTest {
         WindForecast swinging = hourly(new double[]{20, 20, 20}, new double[]{0, 180, 180});
         RouteWind wind = RouteWind.analyze(north, Collections.singletonList(0),
                 Collections.singletonList(swinging), DEPART, 2 * HOUR, 5);
-        assertEquals(0.25, wind.share(WindEffect.HEADWIND), 0.02);
+        // Component interpolation passes through calm before the wind reverses.
+        assertEquals(0.1875, wind.share(WindEffect.HEADWIND), 0.02);
     }
 
     @Test
@@ -179,8 +180,9 @@ public class RouteWindTest {
         assertEquals(WindEffect.HEADWIND, wind.stretches.get(0).effect);
         assertEquals(WindEffect.TAILWIND,
                 wind.stretches.get(wind.stretches.size() - 1).effect);
-        // Hour 0 is nearest until 30 minutes in, a quarter of the way.
-        assertEquals(0.25, wind.share(WindEffect.HEADWIND), 0.02);
+        // The headwind drops below 5 km/h at 22.5 minutes, then turns.
+        // Component interpolation passes through calm before the wind reverses.
+        assertEquals(0.1875, wind.share(WindEffect.HEADWIND), 0.02);
     }
 
     @Test
@@ -196,13 +198,14 @@ public class RouteWindTest {
     }
 
     @Test
-    public void eachStretchUsesTheNearestPlaceWithAForecast() {
+    public void eachStretchInterpolatesBetweenPlacesWithForecasts() {
         // Northerly at the start of the road, southerly at the far end.
         Route north = routeOf(line(new GeoPoint(0, 0), 0.001, 0, 400), 600);
         RouteWind wind = analyze(north, steady(20, 0), steady(20, 180));
         assertEquals(WindEffect.HEADWIND, wind.stretches.get(0).effect);
         assertEquals(WindEffect.TAILWIND,
                 wind.stretches.get(wind.stretches.size() - 1).effect);
-        assertEquals(0.5, wind.share(WindEffect.HEADWIND), 0.02);
+        assertEquals(0.375, wind.share(WindEffect.HEADWIND), 0.02);
+        assertEquals(0.25, wind.share(WindEffect.CALM), 0.02);
     }
 }

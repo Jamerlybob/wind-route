@@ -31,6 +31,13 @@ public final class OpenMeteoClient {
         return parse(Http.get(buildUrl(places)));
     }
 
+    public static List<WindForecast> fetch(List<GeoPoint> places, boolean quarterHourly) throws IOException {
+        String url = buildUrl(places);
+        if (!quarterHourly) url = url.replace("&minutely_15=wind_speed_10m,wind_direction_10m,wind_gusts_10m", "")
+                .replace("&forecast_minutely_15=192", "");
+        return parse(Http.get(url));
+    }
+
     public static String buildUrl(List<GeoPoint> places) {
         StringBuilder lats = new StringBuilder();
         StringBuilder lngs = new StringBuilder();
@@ -50,7 +57,8 @@ public final class OpenMeteoClient {
                 + "&wind_speed_unit=kmh"
                 // Times as plain seconds since 1970, so no time zone parsing is needed.
                 + "&timeformat=unixtime&timezone=GMT"
-                + "&forecast_days=8";
+                + "&minutely_15=wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+                + "&forecast_minutely_15=192&forecast_days=8";
     }
 
     public static List<WindForecast> parse(String json) throws IOException {
@@ -82,6 +90,17 @@ public final class OpenMeteoClient {
                         optionalNumbers(hourly, "temperature_2m", epoch.length),
                         optionalNumbers(hourly, "precipitation", epoch.length),
                         optionalNumbers(hourly, "precipitation_probability", epoch.length)));
+            }
+            for (int i = 0; i < forecasts.size(); i++) {
+                JSONObject quarter = locations.getJSONObject(i).optJSONObject("minutely_15");
+                if (quarter == null || quarter.getJSONArray("time").length() == 0) continue;
+                JSONArray quarterTimes = quarter.getJSONArray("time");
+                long[] epochs = new long[quarterTimes.length()];
+                for (int j = 0; j < epochs.length; j++) epochs[j] = quarterTimes.getLong(j);
+                forecasts.get(i).quarterHourlyWind = new WindForecast(epochs,
+                        numbers(quarter.getJSONArray("wind_speed_10m"), 0),
+                        numbers(quarter.getJSONArray("wind_direction_10m"), 0),
+                        numbers(quarter.getJSONArray("wind_gusts_10m"), 0));
             }
             return forecasts;
         } catch (JSONException e) {

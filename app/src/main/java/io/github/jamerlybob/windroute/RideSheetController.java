@@ -32,6 +32,7 @@ public final class RideSheetController {
     private final BottomSheetBehavior<View> behavior;
     private final DepartureStripView strip;
     private final ElevationProfileView profileView;
+    private int bottomInset;
 
     public RideSheetController(Activity activity) {
         this.activity = activity;
@@ -55,11 +56,20 @@ public final class RideSheetController {
                         .setPositiveButton(android.R.string.ok, null)
                         .show());
         LinearLayout collapsed = activity.findViewById(R.id.summary_collapsed);
+        behavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override public void onStateChanged(View view, int state) {
+                setHeaderInset(state == BottomSheetBehavior.STATE_COLLAPSED ? 1 : 0);
+            }
+            @Override public void onSlide(View view, float offset) {
+                setHeaderInset(1 - Math.max(0, Math.min(1, offset)));
+            }
+        });
         collapsed.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
             // BottomSheetBehavior may measure this container with only the old
             // peek height available. Summing its measured children avoids that
             // circular constraint and keeps every visible summary row on-screen.
-            int contentHeight = collapsed.getPaddingTop() + collapsed.getPaddingBottom();
+            int contentHeight = collapsed.getPaddingTop()
+                    + Math.round(12 * activity.getResources().getDisplayMetrics().density) + bottomInset;
             for (int i = 0; i < collapsed.getChildCount(); i++) {
                 View child = collapsed.getChildAt(i);
                 if (child.getVisibility() == View.GONE) continue;
@@ -78,6 +88,21 @@ public final class RideSheetController {
                 collapsed.post(() -> behavior.setPeekHeight(measuredPeek, false));
             }
         });
+    }
+
+    public void setBottomInset(int inset) {
+        bottomInset = inset;
+        setHeaderInset(behavior.getState() == BottomSheetBehavior.STATE_COLLAPSED ? 1 : 0);
+    }
+
+    private void setHeaderInset(float fraction) {
+        View header = activity.findViewById(R.id.summary_collapsed);
+        int base = Math.round(12 * activity.getResources().getDisplayMetrics().density);
+        int padding = base + Math.round(bottomInset * fraction);
+        // Gesture clearance belongs at the bottom only while collapsed. Leaving
+        // it in the expanded header creates an empty band before the timeline.
+        if (header.getPaddingBottom() != padding) header.setPadding(
+                header.getPaddingLeft(),header.getPaddingTop(),header.getPaddingRight(),padding);
     }
 
     public void show(RideAnalysis analysis, Settings settings,
@@ -158,12 +183,8 @@ public final class RideSheetController {
         strip.setVisibility(View.VISIBLE);
         TextView summary = activity.findViewById(R.id.best_summary);
         summary.setVisibility(View.VISIBLE);
-        DepartureScorer.Entry best = analysis.departures.get(0);
-        for (DepartureScorer.Entry entry : analysis.departures) {
-            if (entry.score < best.score) {
-                best = entry;
-            }
-        }
+        int bestIndex = io.github.jamerlybob.windroute.wind.DepartureSlots.bestIndex(analysis.departures);
+        DepartureScorer.Entry best = analysis.departures.get(bestIndex);
         String wind = best.averageHeadwindKmh >= 0
                 ? activity.getString(R.string.net_headwind,
                         units.windSpeed(Math.abs(best.averageHeadwindKmh)))
@@ -173,23 +194,12 @@ public final class RideSheetController {
                 && best.wettestRainMm > 0) || (!Double.isNaN(best.rainChancePercent)
                 && best.rainChancePercent >= 30))
                 ? activity.getString(R.string.rain_possible) : activity.getString(R.string.dry);
-        String text = activity.getString(R.string.best_departure, time(best.departureEpochSeconds),
+        String text = activity.getString(R.string.best_departure, android.text.format.DateUtils.formatDateTime(activity, best.departureEpochSeconds * 1000,
+                android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY | android.text.format.DateUtils.FORMAT_SHOW_TIME
+                        | android.text.format.DateUtils.FORMAT_ABBREV_WEEKDAY),
                 wind, wet);
         summary.setText(text);
-        strip.setEntries(analysis.departures, nearestDeparture(analysis), listener, text);
-    }
-
-    private long nearestDeparture(RideAnalysis analysis) {
-        long nearest = analysis.departures.get(0).departureEpochSeconds;
-        long gap = Long.MAX_VALUE;
-        for (DepartureScorer.Entry entry : analysis.departures) {
-            long candidate = Math.abs(entry.departureEpochSeconds - analysis.departureEpochSeconds);
-            if (candidate < gap) {
-                gap = candidate;
-                nearest = entry.departureEpochSeconds;
-            }
-        }
-        return nearest;
+        strip.setEntries(analysis.departures, analysis.departureEpochSeconds, listener, text);
     }
 
     private void fillWeather(RideWeather weather, Settings settings) {
@@ -248,6 +258,15 @@ public final class RideSheetController {
     private void fillHills(RideAnalysis analysis, Settings settings, UnitText units,
                            boolean loading, boolean failed) {
         TextView status = activity.findViewById(R.id.hills_status);
+        TextView totals = activity.findViewById(R.id.elevation_totals);
+        totals.setVisibility(analysis.elevation == null ? View.GONE : View.VISIBLE);
+        if (analysis.elevation != null) {
+            int heightFormat = settings.elevationUnit == Settings.ElevationUnit.FEET
+                    ? R.string.height_feet : R.string.height_metres;
+            totals.setText(activity.getString(R.string.elevation_totals,
+                    activity.getString(heightFormat,UnitFormatter.elevation(analysis.elevation.totalAscentMeters,settings.elevationUnit)),
+                    activity.getString(heightFormat,UnitFormatter.elevation(analysis.elevation.totalDescentMeters,settings.elevationUnit))));
+        }
         LinearLayout list = activity.findViewById(R.id.climbs_list);
         list.removeAllViews();
         if (analysis.elevation == null) {

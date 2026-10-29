@@ -42,6 +42,24 @@ public final class OverpassClient {
     public static List<Poi> fetch(List<GeoPoint> points, Collection<PoiKind> kinds,
                                   int corridorMeters) throws IOException {
         String query = buildQuery(points, kinds, corridorMeters);
+        return PoiAlongRoute.withinCorridor(points, request(query), corridorMeters);
+    }
+
+    /** One small-box request only after the rider taps Find camping near here. */
+    public static List<Poi> fetchCampingBox(GeoPoint point) throws IOException {
+        return request(buildCampingBoxQuery(point));
+    }
+
+    public static String buildCampingBoxQuery(GeoPoint point) {
+        double latitudeRadius = 5000.0 / 111320;
+        double longitudeRadius = latitudeRadius / Math.max(.01, Math.cos(Math.toRadians(point.lat)));
+        return String.format(Locale.US,
+                "[out:json][timeout:25];nwr[\"tourism\"~\"^(camp_site|caravan_site)$\"](%.5f,%.5f,%.5f,%.5f);out center tags;",
+                Math.max(-90, point.lat-latitudeRadius), Math.max(-180, point.lng-longitudeRadius),
+                Math.min(90, point.lat+latitudeRadius), Math.min(180, point.lng+longitudeRadius));
+    }
+
+    private static List<Poi> request(String query) throws IOException {
         String body = "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8.name());
 
         HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT).openConnection();
@@ -68,10 +86,7 @@ public final class OverpassClient {
             if (status >= 400) {
                 throw new IOException("Places service returned HTTP " + status + ".");
             }
-            // Query thinning can widen the server corridor to cover bends.
-            // Remove broad-query extras against the actual line before claiming
-            // that every shown result is within the rider's requested distance.
-            return PoiAlongRoute.withinCorridor(points, parse(responseBody), corridorMeters);
+            return parse(responseBody);
         } finally {
             connection.disconnect();
         }

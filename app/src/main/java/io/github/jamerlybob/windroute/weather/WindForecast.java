@@ -40,6 +40,23 @@ public final class WindForecast {
         this.precipitationProbabilityPercent = precipitationProbabilityPercent;
     }
 
+    public WindForecast quarterHourlyWind;
+
+    /** Interpolate velocity, not angles: 350 and 10 degrees meet at north. */
+    public io.github.jamerlybob.windroute.wind.WindVector windAt(long time) {
+        if (quarterHourlyWind != null && time >= quarterHourlyWind.epochSeconds[0]
+                && time <= quarterHourlyWind.epochSeconds[quarterHourlyWind.epochSeconds.length - 1])
+            return quarterHourlyWind.windAt(time);
+        if (epochSeconds.length == 0) return new io.github.jamerlybob.windroute.wind.WindVector(0, 0);
+        int before = 0;
+        while (before + 1 < epochSeconds.length && epochSeconds[before + 1] <= time) before++;
+        int after = Math.min(before + 1, epochSeconds.length - 1);
+        double fraction = after == before ? 0 : Math.max(0, Math.min(1,
+                (double) (time - epochSeconds[before]) / (epochSeconds[after] - epochSeconds[before])));
+        return io.github.jamerlybob.windroute.wind.WindVector.from(speedKmh[before], directionDeg[before])
+                .mix(io.github.jamerlybob.windroute.wind.WindVector.from(speedKmh[after], directionDeg[after]), fraction);
+    }
+
     private static double[] unknowns(int length) {
         double[] values = new double[length];
         Arrays.fill(values, Double.NaN);

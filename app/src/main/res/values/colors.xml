@@ -27,4 +27,5 @@
     <color name="brand_on_surface_variant">#47515C</color>
     <color name="brand_outline">#77828E</color>
     <color name="brand_outline_variant">#C4CCD5</color>
+    <color name="map_control_surface">#EDFFFFFF</color>
 </resources>

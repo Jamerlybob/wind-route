@@ -32,6 +32,7 @@ public final class RouteWind {
         public final double headwindKmh;
         public final double windSpeedKmh;
         public final double gustKmh;
+        public double windFromDegrees;
 
         Stretch(int fromIndex, int toIndex, double lengthMeters, WindEffect effect,
                 double headwindKmh, double windSpeedKmh, double gustKmh) {
@@ -119,11 +120,19 @@ public final class RouteWind {
             long arrival = departEpochSeconds
                     + Math.round(durationSeconds * (total > 0 ? middle / total : 0));
 
-            WindForecast forecast = forecasts.get(
-                    nearestSample(sampleIndexes, cumulative, middle));
+            int left = 0;
+            while (left + 1 < sampleIndexes.size()
+                    && cumulative[sampleIndexes.get(left + 1)] <= middle) left++;
+            int right = Math.min(left + 1, sampleIndexes.size() - 1);
+            double span = cumulative[sampleIndexes.get(right)] - cumulative[sampleIndexes.get(left)];
+            double fraction = span <= 0 ? 0 : Math.max(0, Math.min(1,
+                    (middle - cumulative[sampleIndexes.get(left)]) / span));
+            WindVector velocity = forecasts.get(left).windAt(arrival)
+                    .mix(forecasts.get(right).windAt(arrival), fraction);
+            double speed = velocity.speed();
+            double direction = velocity.fromDegrees();
+            WindForecast forecast = forecasts.get(fraction < 0.5 ? left : right);
             int hour = forecast.indexAt(arrival);
-            double speed = forecast.speedKmh[hour];
-            double direction = forecast.directionDeg[hour];
 
             // The heading of a stretch is the straight line from its first point
             // to its last, which smooths out wiggles shorter than the stretch.
@@ -133,6 +142,7 @@ public final class RouteWind {
                     WindMath.classify(heading, direction, speed, calmBelowKmh),
                     WindMath.headwindComponent(heading, direction, speed),
                     speed, forecast.gustKmh[hour]));
+            stretches.get(stretches.size()-1).windFromDegrees = direction;
             from = i;
         }
         return new RouteWind(stretches);
@@ -158,18 +168,4 @@ public final class RouteWind {
                 departEpochSeconds, durationSeconds, calmBelowKmh);
     }
 
-    /** Position in sampleIndexes of the sample closest, along the road, to a distance. */
-    private static int nearestSample(List<Integer> sampleIndexes, double[] cumulative,
-                                     double meters) {
-        int best = 0;
-        double bestGap = Double.MAX_VALUE;
-        for (int s = 0; s < sampleIndexes.size(); s++) {
-            double gap = Math.abs(cumulative[sampleIndexes.get(s)] - meters);
-            if (gap < bestGap) {
-                bestGap = gap;
-                best = s;
-            }
-        }
-        return best;
-    }
 }

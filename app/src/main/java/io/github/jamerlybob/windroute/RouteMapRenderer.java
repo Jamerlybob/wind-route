@@ -9,14 +9,11 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.model.Dash;
-import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
@@ -82,16 +79,22 @@ public final class RouteMapRenderer {
         // The neutral, wider casing stays below every coloured segment. It
         // separates the route from similarly coloured roads on the base map.
         map.addPolyline(new PolylineOptions().addAll(all)
-                .color(ContextCompat.getColor(activity, R.color.route_casing))
-                .width(CASING_WIDTH_PX).jointType(JointType.ROUND)
+                .color(ContextCompat.getColor(activity,R.color.route_casing))
+                .width(dp(8)).jointType(JointType.ROUND)
                 .startCap(new RoundCap()).endCap(new RoundCap()));
-        drawGustOutlines(all, analysis.gustWarnings, route);
-        drawWindRuns(all, analysis.wind);
 
-        map.addMarker(new MarkerOptions().position(all.get(0))
-                .title(activity.getString(R.string.marker_start)));
-        map.addMarker(new MarkerOptions().position(all.get(all.size() - 1))
-                .title(activity.getString(R.string.marker_end)));
+        drawWindRuns(all, analysis.wind);
+        ((WindFlowView) activity.findViewById(R.id.wind_flow)).setRouteGeometry(route.points);
+        redrawArrows();
+
+        String startName = ((TextView) activity.findViewById(R.id.origin)).getText().toString();
+        String endName = ((TextView) activity.findViewById(R.id.destination)).getText().toString();
+        if (startName.trim().isEmpty()) startName = activity.getString(R.string.marker_start);
+        if (endName.trim().isEmpty()) endName = activity.getString(R.string.marker_end);
+        map.addMarker(new MarkerOptions().position(all.get(0)).title(startName).anchor(.5f, 48f/70f)
+                .icon(MapIcons.endpoint(activity, ContextCompat.getColor(activity,R.color.wind_tailwind), startName)));
+        map.addMarker(new MarkerOptions().position(all.get(all.size() - 1)).title(endName).anchor(.5f,48f/70f)
+                .icon(MapIcons.endpoint(activity, ContextCompat.getColor(activity,R.color.wind_headwind), endName)));
         fillSummary(analysis, settings, route.durationSeconds, windCost);
         summaryCard.setVisibility(View.VISIBLE);
         if (rideMode) {
@@ -101,6 +104,37 @@ public final class RouteMapRenderer {
             fitRoute(all, collapsedSheetHeight);
         } else {
             updatePadding(collapsedSheetHeight);
+        }
+    }
+
+    private float dp(float value) { return value * activity.getResources().getDisplayMetrics().density; }
+
+    private final List<com.google.android.gms.maps.model.Marker> arrows = new ArrayList<>();
+
+    /** Screen spacing keeps the wind direction marks legible at every zoom. */
+    public void redrawArrows() {
+        for (com.google.android.gms.maps.model.Marker arrow : arrows) arrow.remove();
+        arrows.clear();
+        if (analysis == null || rideMode) return;
+        android.graphics.Point previous = null;
+        for (RouteWind.Stretch stretch : analysis.wind.stretches) {
+            GeoPoint point = analysis.route.points.get((stretch.fromIndex + stretch.toIndex)/2);
+            LatLng position = new LatLng(point.lat,point.lng);
+            android.graphics.Point screen = map.getProjection().toScreenLocation(position);
+            if (screen.x<0 || screen.y<0 || screen.x>root.getWidth() || screen.y>root.getHeight()) continue;
+            if (previous != null && Math.hypot(screen.x-previous.x,screen.y-previous.y)<dp(140)) continue;
+            GeoPoint nextPoint = analysis.route.points.get(stretch.toIndex);
+            android.graphics.Point nextScreen = map.getProjection().toScreenLocation(new LatLng(nextPoint.lat,nextPoint.lng));
+            double dx = nextScreen.x - screen.x;
+            double dy = nextScreen.y - screen.y;
+            double length = Math.max(1,Math.hypot(dx,dy));
+            LatLng arrowPosition = map.getProjection().fromScreenLocation(new android.graphics.Point(
+                    (int)(screen.x - dy / length * dp(15)), (int)(screen.y + dx / length * dp(15))));
+            arrows.add(map.addMarker(new MarkerOptions().position(arrowPosition).anchor(.5f,.5f).flat(true)
+                    .rotation((float)((stretch.windFromDegrees+180)%360))
+                    .icon(MapIcons.arrow(activity,ContextCompat.getColor(activity,colorFor(stretch.effect))))
+                    .zIndex(4)));
+            previous=screen;
         }
     }
 
@@ -141,23 +175,19 @@ public final class RouteMapRenderer {
     }
 
     private void drawWindRuns(List<LatLng> all, RouteWind wind) {
-        int runStart = 0;
-        // Consecutive stretches with one verdict become one visible polyline.
-        // Fewer overlays make panning smoother on a long imported GPX track.
-        for (int i = 1; i <= wind.stretches.size(); i++) {
-            boolean runEnds = i == wind.stretches.size()
-                    || wind.stretches.get(i).effect != wind.stretches.get(runStart).effect;
-            if (!runEnds) {
-                continue;
-            }
-            RouteWind.Stretch first = wind.stretches.get(runStart);
-            RouteWind.Stretch last = wind.stretches.get(i - 1);
-            map.addPolyline(new PolylineOptions()
-                    .addAll(all.subList(first.fromIndex, last.toIndex + 1))
-                    .color(ContextCompat.getColor(activity, colorFor(first.effect)))
-                    .width(ROUTE_WIDTH_PX).jointType(JointType.ROUND)
-                    .startCap(new RoundCap()).endCap(new RoundCap()).zIndex(1f));
-            runStart = i;
+        for (RouteWind.Stretch stretch : wind.stretches) {
+            int base = ContextCompat.getColor(activity, colorFor(stretch.effect));
+            int shaded = io.github.jamerlybob.windroute.wind.WindPalette.blend(0xfff4f6f6, base,
+                    .35 + .65 * Math.min(1, stretch.windSpeedKmh / 35));
+            map.addPolyline(new PolylineOptions().addAll(all.subList(stretch.fromIndex, stretch.toIndex + 1))
+                    .color((base & 0x00ffffff) | 0x18000000).width(dp(19)).zIndex(-2)
+                    .jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new RoundCap()));
+            map.addPolyline(new PolylineOptions().addAll(all.subList(stretch.fromIndex, stretch.toIndex + 1))
+                    .color((base & 0x00ffffff) | 0x40000000).width(dp(13)).zIndex(-1)
+                    .jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new RoundCap()));
+            map.addPolyline(new PolylineOptions().addAll(all.subList(stretch.fromIndex, stretch.toIndex + 1))
+                    .color(shaded).width(dp(5)).jointType(JointType.ROUND)
+                    .startCap(new RoundCap()).endCap(new RoundCap()).zIndex(1));
         }
 
         // Google reports which polyline was tapped but not the tapped point.
@@ -172,26 +202,6 @@ public final class RouteMapRenderer {
                     .zIndex(3f).clickable(true));
             target.setTag(new WindRun(i, i, stretchStart));
             stretchStart += stretch.lengthMeters;
-        }
-    }
-
-    private void drawGustOutlines(List<LatLng> all, List<GustWarnings.Warning> warnings,
-                                  Route route) {
-        if (warnings.isEmpty()) {
-            return;
-        }
-        double[] cumulative = GeoMath.cumulativeMeters(route.points);
-        List<PatternItem> pattern = Arrays.asList(new Dash(18), new Gap(12));
-        for (GustWarnings.Warning warning : warnings) {
-            int from = indexAt(cumulative, warning.startMeters);
-            int to = indexAt(cumulative, warning.startMeters + warning.lengthMeters);
-            to = Math.max(from + 1, Math.min(to, all.size() - 1));
-            // This thicker dashed line sits under the coloured road. Only its
-            // two edges remain visible, making a findable outline without
-            // covering the wind verdict itself.
-            map.addPolyline(new PolylineOptions().addAll(all.subList(from, to + 1))
-                    .color(ContextCompat.getColor(activity, R.color.wind_headwind))
-                    .width(CASING_WIDTH_PX + 5).pattern(pattern).zIndex(0.5f));
         }
     }
 
@@ -241,6 +251,17 @@ public final class RouteMapRenderer {
         RouteWind reverse = analysis.reverseWind;
         UnitText units = new UnitText(activity, settings);
         ((TextView) activity.findViewById(R.id.headline)).setText(headlineFor(wind));
+        WindBadgeView badge = activity.findViewById(R.id.wind_badge);
+        badge.setWind(ContextCompat.getColor(activity, colorFor(
+                        io.github.jamerlybob.windroute.wind.WindPresentation.verdict(wind))),
+                io.github.jamerlybob.windroute.wind.WindPresentation.routeArrow(route, wind),
+                units.windSpeed(wind.averageWindKmh));
+        WindEffect verdict = io.github.jamerlybob.windroute.wind.WindPresentation.verdict(wind);
+        int sentence = verdict == WindEffect.HEADWIND ? R.string.verdict_headwind
+                : verdict == WindEffect.TAILWIND ? R.string.verdict_tailwind
+                : verdict == WindEffect.CROSSWIND ? R.string.verdict_crosswind : R.string.verdict_calm;
+        ((TextView)activity.findViewById(R.id.verdict_sentence)).setText(activity.getString(sentence,
+                (int)Math.round(wind.share(verdict)*100)));
         String push = wind.averageHeadwindKmh > 0.5
                 ? activity.getString(R.string.net_headwind,
                         units.windSpeed(Math.abs(wind.averageHeadwindKmh)))
@@ -274,15 +295,12 @@ public final class RouteMapRenderer {
             climbWarning.setText(activity.getResources().getQuantityString(
                     R.plurals.climbs_into_wind, intoWind, intoWind));
         }
-        setShare(R.id.bar_headwind, R.id.legend_headwind, R.string.legend_headwind,
-                wind.share(WindEffect.HEADWIND));
-        setShare(R.id.bar_crosswind, R.id.legend_crosswind, R.string.legend_crosswind,
-                wind.share(WindEffect.CROSSWIND));
-        setShare(R.id.bar_tailwind, R.id.legend_tailwind, R.string.legend_tailwind,
-                wind.share(WindEffect.TAILWIND));
-        setShare(R.id.bar_calm, R.id.legend_calm, R.string.legend_calm,
-                wind.share(WindEffect.CALM));
+        setShare(R.id.bar_headwind, wind.share(WindEffect.HEADWIND));
+        setShare(R.id.bar_crosswind, wind.share(WindEffect.CROSSWIND));
+        setShare(R.id.bar_tailwind, wind.share(WindEffect.TAILWIND));
+        setShare(R.id.bar_calm, wind.share(WindEffect.CALM));
 
+        ((WindShareLegendView)activity.findViewById(R.id.share_legend)).setWind(wind,route.distanceMeters,settings);
         TextView comparisonView = activity.findViewById(R.id.reverse_comparison);
         DirectionComparison comparison = DirectionComparison.compare(wind, reverse);
         if (comparison.meaningful) {
@@ -362,15 +380,11 @@ public final class RouteMapRenderer {
         return activity.getString(R.string.headline_mixed);
     }
 
-    private void setShare(int barId, int legendId, int labelRes, double share) {
+    private void setShare(int barId, double share) {
         View bar = activity.findViewById(barId);
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) bar.getLayoutParams();
         params.weight = (float) share;
-        // LinearLayout divides its fixed width by these weights, so the four
-        // children form a truthful 100% share bar without pixel arithmetic.
         bar.setLayoutParams(params);
-        ((TextView) activity.findViewById(legendId)).setText(
-                activity.getString(labelRes, (int) Math.round(share * 100)));
     }
 
     private String formatDuration(long seconds) {
@@ -391,6 +405,7 @@ public final class RouteMapRenderer {
 
     private String poiKind(PoiKind kind) {
         switch (kind) {
+            case TOWN: return activity.getString(R.string.poi_town);
             case WATER: return activity.getString(R.string.poi_water);
             case FOOD: return activity.getString(R.string.poi_food);
             case CAMPING: return activity.getString(R.string.poi_camping);

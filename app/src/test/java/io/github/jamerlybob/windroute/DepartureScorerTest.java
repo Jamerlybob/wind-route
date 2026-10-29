@@ -35,7 +35,9 @@ public class DepartureScorerTest {
                 START, 3);
 
         assertEquals(3, entries.size());
-        assertEquals(10, entries.get(0).averageHeadwindKmh, 0.01);
+        // During this ten-minute ride the hourly velocity is already changing
+        // towards the next southerly. Its distance-weighted mean is 8 1/3 km/h.
+        assertEquals(10 - 20 * 300.0 / 3600, entries.get(0).averageHeadwindKmh, 0.01);
         assertEquals(-10, entries.get(1).averageHeadwindKmh, 0.01);
         assertEquals(23, entries.get(1).rainPenalty, 0.01);
         assertTrue(entries.get(1).score > entries.get(0).score);

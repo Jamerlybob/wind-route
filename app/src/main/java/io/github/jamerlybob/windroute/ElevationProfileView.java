@@ -21,7 +21,7 @@ import io.github.jamerlybob.windroute.units.UnitFormatter;
 import io.github.jamerlybob.windroute.wind.RouteWind;
 import io.github.jamerlybob.windroute.wind.WindEffect;
 
-/** A filled elevation profile whose road-facing edge uses the route wind colours. */
+/** A wind-coloured elevation line with a quiet translucent fill below it. */
 public final class ElevationProfileView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path area = new Path();
@@ -31,6 +31,7 @@ public final class ElevationProfileView extends View {
     private List<ClimbWind> climbWinds = new ArrayList<>();
     private Settings settings = Settings.defaults();
     private double progressMeters = Double.NaN;
+    private android.graphics.Shader windLineShader;
 
     public ElevationProfileView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -50,6 +51,7 @@ public final class ElevationProfileView extends View {
         this.climbs = climbs;
         this.climbWinds = climbWinds;
         this.settings = settings;
+        prepareWindShader();
         invalidate();
     }
 
@@ -96,10 +98,19 @@ public final class ElevationProfileView extends View {
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(ContextCompat.getColor(getContext(), colorFor(
                     effectAt((profile.distanceMeters[i - 1] + profile.distanceMeters[i]) / 2))));
-            paint.setAlpha(145);
+            paint.setAlpha(35);
             canvas.drawPath(area, paint);
             paint.setAlpha(255);
+            if (x1 > x0) {
+                paint.setShader(windLineShader);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(2.5f * density);
+                paint.setStrokeCap(Paint.Cap.ROUND);
+                canvas.drawLine(x0, y0, x1, y1, paint);
+                paint.setShader(null);
+            }
         }
+        paint.setStyle(Paint.Style.FILL);
 
         paint.setTextSize(10 * density);
         paint.setColor(resolve(com.google.android.material.R.attr.colorOnSurfaceVariant));
@@ -140,6 +151,29 @@ public final class ElevationProfileView extends View {
             paint.setStyle(Paint.Style.FILL);
             canvas.drawCircle(markerX, top, 5 * density, paint);
         }
+    }
+
+    @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        prepareWindShader();
+    }
+
+    private void prepareWindShader() {
+        windLineShader = null;
+        if (profile == null || profile.size() < 2 || wind == null) return;
+        float density = getResources().getDisplayMetrics().density;
+        float left = 42 * density;
+        float right = getWidth() - 8 * density;
+        if (right <= left) return;
+        int[] colors = new int[profile.size()];
+        float[] positions = new float[profile.size()];
+        double total = profile.distanceMeters[profile.size() - 1];
+        for (int i = 0; i < colors.length; i++) {
+            colors[i] = ContextCompat.getColor(getContext(),colorFor(effectAt(profile.distanceMeters[i])));
+            positions[i] = total <= 0 ? (float)i/(colors.length-1) : (float)(profile.distanceMeters[i]/total);
+        }
+        // Rebuild only when data or size changes, never for each drawing frame.
+        windLineShader = new android.graphics.LinearGradient(left,0,right,0,colors,positions,
+                android.graphics.Shader.TileMode.CLAMP);
     }
 
     private WindEffect effectAt(double distance) {

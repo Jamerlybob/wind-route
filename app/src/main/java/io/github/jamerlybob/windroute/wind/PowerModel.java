@@ -81,7 +81,7 @@ public final class PowerModel {
         return aerodynamic + rolling;
     }
 
-    private static double speedForPower(double targetPowerWatts, double headwindMps) {
+    public static double speedForPower(double targetPowerWatts, double headwindMps) {
         // With a tailwind faster than the bike, the written flat-road equation
         // does not model the wind pushing the rider. Start at wind speed, where
         // relative air speed is zero, rather than selecting the equation's slow,

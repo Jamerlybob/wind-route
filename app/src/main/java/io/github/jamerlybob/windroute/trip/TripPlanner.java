@@ -57,6 +57,21 @@ public final class TripPlanner {
         return result;
     }
 
+    /** Snap in order so nearby campsites cannot invert or collapse two days. */
+    public static double[] snapBoundaries(Route route, double[] boundaries,
+                                          List<io.github.jamerlybob.windroute.poi.PoiAlongRoute> places) {
+        double[] distances = GeoMath.cumulativeMeters(route.points);
+        double total = distances[distances.length - 1];
+        double[] snapped = boundaries.clone();
+        for (int i = 0; i < snapped.length; i++) {
+            double target = StopPicker.snap(boundaries[i], total, places);
+            double lower = i == 0 ? 1 : snapped[i - 1] + 1;
+            double upper = i == snapped.length - 1 ? total - 1 : boundaries[i + 1] - 1;
+            snapped[i] = Math.max(lower, Math.min(upper, target));
+        }
+        return snapped;
+    }
+
     public static double[] nudge(double[] boundaries, int boundary, double deltaMeters,
                                  double routeLength) {
         double[] result = boundaries.clone();

@@ -24,6 +24,9 @@ import java.util.ArrayList;
  * <p>It does not survive the app being killed. That is a separate roadmap item.
  */
 public class RouteState extends ViewModel {
+    /** Survives rotation, but a new process starts a fresh planning screen. */
+    public boolean screenInitialized;
+
     Route route;
     /** Which points of the route the forecasts below belong to. */
     List<Integer> sampleIndexes;

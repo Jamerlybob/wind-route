@@ -63,14 +63,13 @@ public final class DepartureStripView extends View {
 
         double largestHeadwind = 0;
         double largestTailwind = 0;
-        int best = 0;
+        int best = io.github.jamerlybob.windroute.wind.DepartureSlots.bestIndex(entries);
+        int selected = io.github.jamerlybob.windroute.wind.DepartureSlots.selectedIndex(entries, selectedEpochSeconds);
         for (int i = 0; i < entries.size(); i++) {
             double wind = entries.get(i).averageHeadwindKmh;
             largestHeadwind = Math.max(largestHeadwind, wind);
             largestTailwind = Math.max(largestTailwind, -wind);
-            if (entries.get(i).score < entries.get(best).score) {
-                best = i;
-            }
+
         }
         float graphTop = 16 * density;
         float graphBottom = labelTop - 8 * density;
@@ -114,11 +113,12 @@ public final class DepartureStripView extends View {
                 canvas.drawCircle((x0 + x1) / 2, labelTop - 5 * density, 2.5f * density, paint);
             }
 
-            if (entry.departureEpochSeconds == selectedEpochSeconds) {
+            if (i == selected) {
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setStrokeWidth(2 * density);
                 paint.setColor(resolve(com.google.android.material.R.attr.colorOnSurface));
-                selectedOutline.set(x0 - density, y0 - density, x1 + density, y1 + density);
+                selectedOutline.set(x0 - density, Math.min(y0, centre - 2 * density) - density,
+                        x1 + density, Math.max(y1, centre + 2 * density) + density);
                 canvas.drawRoundRect(selectedOutline, 3 * density, 3 * density, paint);
             }
         }
@@ -134,8 +134,12 @@ public final class DepartureStripView extends View {
         }
         paint.setTextSize(9 * density);
         paint.setColor(resolve(androidx.appcompat.R.attr.colorPrimary));
-        canvas.drawText(getContext().getString(R.string.best_label),
-                left + (best + 0.1f) * slot, 11 * density, paint);
+        float bestX = io.github.jamerlybob.windroute.wind.DepartureSlots.center(best, left, right, entries.size());
+        canvas.drawCircle(bestX, 14 * density, 2 * density, paint);
+        String bestLabel = getContext().getString(R.string.best_label);
+        float textWidth = paint.measureText(bestLabel);
+        float textX = Math.max(left, Math.min(right - textWidth, bestX - textWidth / 2));
+        canvas.drawText(bestLabel, textX, 9 * density, paint);
     }
 
     @Override
@@ -143,7 +147,9 @@ public final class DepartureStripView extends View {
         if (event.getAction() != MotionEvent.ACTION_UP || entries.isEmpty()) {
             return true;
         }
-        int index = (int) (event.getX() / Math.max(1f, getWidth()) * entries.size());
+        float inset = 4 * getResources().getDisplayMetrics().density;
+        int index = io.github.jamerlybob.windroute.wind.DepartureSlots.indexAt(
+                event.getX(), inset, getWidth() - inset, entries.size());
         // A finger may finish a fraction outside the view; clamping makes that
         // edge gesture select the first or last hour instead of an invalid one.
         index = Math.max(0, Math.min(entries.size() - 1, index));

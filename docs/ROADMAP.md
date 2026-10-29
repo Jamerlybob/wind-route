@@ -93,3 +93,16 @@ before a ride?
 2. App name. WindRoute is a working title.
 3. Whether the app stays personal (non-commercial Open-Meteo is fine) or goes
    on the Play Store (needs Open-Meteo's commercial terms and a locked-down key).
+## Milestone 6: wind you can see, easy bikepacking (asked 2026-10-30)
+
+James: visual quality first, wind the star of every screen, bikepacking kept
+simple. Specs: `docs/specs/V1-wind-visuals.md`, `V2-easy-bikepacking.md`.
+
+- [ ] Fresh start on every open, with a "Last route" chip
+- [ ] Moving wind particles over the map
+- [ ] Wind speed heatmap, switched on and off from a Layers button
+- [ ] Denser route sampling, 15-minute wind, smooth colour between samples
+- [ ] Route drawn with casing, strength shading and wind arrows
+- [ ] "Where to ride today" card before a route
+- [ ] "How far today?" slider with a suggested stop
+- [ ] Simpler multi-day planner: km a day, day map, overnight stops

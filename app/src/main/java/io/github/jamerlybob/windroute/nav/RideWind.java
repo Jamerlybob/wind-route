@@ -43,7 +43,7 @@ public final class RideWind {
         double speed = forecast.speedKmh[hour];
         // Forecast direction means FROM. Add 180 degrees to show where the
         // air moves, then subtract the rider heading because the map is heading up.
-        double arrow = (from + 180 - headingDegrees + 720) % 360;
+        double arrow = io.github.jamerlybob.windroute.wind.WindPresentation.relativeArrow(from, headingDegrees);
         return new RideWind(WindMath.classify(headingDegrees, from, speed, calmBelowKmh),
                 speed, WindMath.headwindComponent(headingDegrees, from, speed), arrow);
     }

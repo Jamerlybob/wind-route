@@ -28,6 +28,11 @@ final class PlacesListController {
             TextView heading = text(activity);
             heading.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
             heading.setText(activity.getString(R.string.places_heading, label, group.size()));
+            int icon = kind == PoiKind.WATER ? R.drawable.ic_drop
+                    : kind == PoiKind.FOOD ? R.drawable.ic_fork
+                    : kind == PoiKind.CAMPING ? R.drawable.ic_tent : 0;
+            heading.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+            heading.setCompoundDrawablePadding(Math.round(8 * activity.getResources().getDisplayMetrics().density));
             list.addView(heading);
             LinearLayout rows = new LinearLayout(activity);
             rows.setOrientation(LinearLayout.VERTICAL);
@@ -91,6 +96,7 @@ final class PlacesListController {
 
     private static int kindText(PoiKind kind) {
         switch (kind) {
+            case TOWN: return R.string.poi_town;
             case WATER: return R.string.poi_water;
             case FOOD: return R.string.poi_food;
             case CAMPING: return R.string.poi_camping;

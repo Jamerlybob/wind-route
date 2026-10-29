@@ -16,22 +16,20 @@ import io.github.jamerlybob.windroute.weather.WindForecast;
  * data without accidentally making another quota-limited Google Routes call.
  */
 public final class RouteForecastLoader {
-    /** Close enough to follow changing weather without an excessive request. */
-    private static final double SAMPLE_SPACING_METERS = 5_000;
-    /** Caps both URL size and work when a route is unusually long. */
-    private static final int MAX_SAMPLES = 60;
-
     private RouteForecastLoader() {
     }
 
     public static Result load(Route route) throws IOException {
-        double spacing = Math.max(SAMPLE_SPACING_METERS, route.distanceMeters / MAX_SAMPLES);
-        List<Integer> indexes = GeoMath.sampleIndexes(route.points, spacing);
+        return load(route, System.currentTimeMillis()/1000);
+    }
+
+    public static Result load(Route route, long departure) throws IOException {
+        List<Integer> indexes = io.github.jamerlybob.windroute.route.RouteSamples.indexes(route.points);
         List<GeoPoint> places = new ArrayList<>();
         for (int index : indexes) {
             places.add(route.points.get(index));
         }
-        return new Result(indexes, OpenMeteoClient.fetch(places));
+        return new Result(indexes, OpenMeteoClient.fetch(places, departure < System.currentTimeMillis()/1000 + 48*3600));
     }
 
     /** Keeps each forecast paired with the route index it was sampled from. */
