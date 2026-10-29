@@ -32,6 +32,7 @@ public final class CurrentLocationController {
     private final AppCompatActivity activity;
     private final Listener listener;
     private final ActivityResultLauncher<String[]> permissionRequest;
+    private java.util.function.Consumer<GeoPoint> locationTarget;
 
     public CurrentLocationController(AppCompatActivity activity, Listener listener) {
         this.activity = activity;
@@ -43,6 +44,16 @@ public final class CurrentLocationController {
     }
 
     public void requestAfterTap() {
+        request(listener::onLocation);
+    }
+
+    /** A map-centre tap must not silently replace the route's From field. */
+    public void requestForMap(java.util.function.Consumer<GeoPoint> target) {
+        request(target);
+    }
+
+    private void request(java.util.function.Consumer<GeoPoint> target) {
+        locationTarget = target;
         if (hasPermission()) {
             listener.onLocationPermissionAvailable();
             findCurrentLocation();
@@ -85,6 +96,8 @@ public final class CurrentLocationController {
             listener.onLocationMessage(activity.getString(R.string.location_unavailable));
             return;
         }
+        java.util.function.Consumer<GeoPoint> target = locationTarget;
+        if (target == null) return; // A permission result may outlive the original process.
         try {
             LocationManagerCompat.getCurrentLocation(manager, provider,
                     (android.os.CancellationSignal) null,
@@ -93,7 +106,7 @@ public final class CurrentLocationController {
                             listener.onLocationMessage(
                                     activity.getString(R.string.location_unavailable));
                         } else {
-                            listener.onLocation(new GeoPoint(
+                            target.accept(new GeoPoint(
                                     location.getLatitude(), location.getLongitude()));
                         }
                     });

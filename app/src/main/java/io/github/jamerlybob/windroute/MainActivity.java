@@ -176,7 +176,9 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
             if (last != null) {
                 lastRouteAvailable = true;
                 com.google.android.material.chip.Chip chip = findViewById(R.id.last_route);
-                chip.setText(getString(R.string.last_route, last.origin, last.destination));
+                chip.setText(io.github.jamerlybob.windroute.places.LastRouteText.format(
+                        getString(R.string.last_route),getString(R.string.last_track),last.origin,last.destination,
+                        last.route.source == Route.Source.GPX));
                 chip.setVisibility(View.VISIBLE);
                 chip.setOnClickListener(v -> { chip.setVisibility(View.GONE); restoreLastRouteIfNeeded(); });
             }
@@ -239,6 +241,13 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         findViewById(R.id.settings).setOnClickListener(this::showMenu);
         findViewById(R.id.settings_collapsed).setOnClickListener(this::showMenu);
         findViewById(R.id.find_places).setOnClickListener(v -> findPlaces());
+        findViewById(R.id.map_my_location).setOnClickListener(v -> currentLocation.requestForMap(point -> {
+            if (map == null || isDestroyed()) return;
+            com.google.android.gms.maps.model.LatLng position = new com.google.android.gms.maps.model.LatLng(point.lat,point.lng);
+            if (windLayers != null) windLayers.setRider(position);
+            map.animateCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(
+                    position,Math.max(12,map.getCameraPosition().zoom)));
+        }));
         findViewById(R.id.start_ride).setOnClickListener(v -> startRide());
         findViewById(R.id.stop_ride).setOnClickListener(v -> stopRide());
         findViewById(R.id.reroute).setOnClickListener(v -> rerouteFromCurrentPosition());
@@ -434,6 +443,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
     public void onMapReady(@NonNull GoogleMap googleMap) {
         map = googleMap;
         map.getUiSettings().setMapToolbarEnabled(false);
+        map.getUiSettings().setMyLocationButtonEnabled(false);
         map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this,
                 isNight() ? R.raw.map_style_night : R.raw.map_style_day));
         renderer = new RouteMapRenderer(this, map, findViewById(R.id.main),

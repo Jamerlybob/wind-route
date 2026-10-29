@@ -330,4 +330,5 @@
     <string name="trip_weather_details">%1$s · %2$s</string>
     <string name="stop_distance_km">%1$.0f km</string>
     <string name="stop_distance_miles">%1$.0f mi</string>
+    <string name="last_track">Last: %1$s</string>
 </resources>

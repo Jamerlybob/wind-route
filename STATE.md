@@ -40,10 +40,9 @@ with a suggested stop; a simpler trip planner (km a day slider, day map,
 verdict rings). James said on 2026-10-30 that the app was "working good for
 now", without saying whether he had tried riding mode.
 
-Small things seen and not fixed: the my-location button is a light square
-on the dark map; the "Last:" chip reads "Auckland to Hamilton → Finish" for
-a GPX; the trip map has no Start/Finish labels; the heatmap at one speed
-tints the whole map one colour.
+The three small things seen after that (my-location button, the "Last:"
+chip for a GPX, labels on the trip map) were fixed the same day. Still
+seen: the heatmap at one speed tints the whole map one colour.
 
 ## How the work is being done
 

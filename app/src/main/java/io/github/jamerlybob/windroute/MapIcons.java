@@ -60,11 +60,18 @@ public final class MapIcons {
         android.graphics.drawable.Drawable tent = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_tent);
         if (tent != null) {
             tent.setTint(Color.WHITE);
-            tent.setBounds(4, 4, 36, 36);
+            if (number > 0) tent.setBounds(8, 1, 32, 22);
+            else tent.setBounds(4, 4, 36, 36);
             tent.draw(canvas);
         }
         paint.setColor(0xff267b68);paint.setTextSize(13);paint.setTextAlign(Paint.Align.CENTER);
-        if(number>0)canvas.drawText(Integer.toString(number),20,26,paint);
+        if (number > 0) {
+            // White digits below the symbol stay readable; the old green digits
+            // disappeared into the equally green cut-out doorway.
+            paint.setColor(Color.WHITE);
+            paint.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
+            canvas.drawText(String.format(java.util.Locale.getDefault(),"%d",number),20,34,paint);
+        }
         else {Path door=new Path();door.moveTo(14,29);door.lineTo(20,18);door.lineTo(26,29);door.close();canvas.drawPath(door,paint);}
         return BitmapDescriptorFactory.fromBitmap(image);
     }

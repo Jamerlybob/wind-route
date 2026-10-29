@@ -53,6 +53,7 @@ import io.github.jamerlybob.windroute.poi.PoiAlongRoute;
 import io.github.jamerlybob.windroute.poi.PoiKind;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.Route;
+import io.github.jamerlybob.windroute.route.MarkerLayout;
 import io.github.jamerlybob.windroute.settings.Settings;
 import io.github.jamerlybob.windroute.settings.SettingsStore;
 import io.github.jamerlybob.windroute.trip.DaySplitter;
@@ -84,6 +85,10 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     private long fetchedAt;
     private String savedId;
     private GoogleMap tripMap;
+    private com.google.android.gms.maps.model.Marker tripStartMarker, tripFinishMarker;
+    private String tripOrigin = "", tripDestination = "";
+    private String tripStartLabel = "", tripFinishLabel = "";
+    private boolean startLabelShown, finishLabelShown;
     private volatile int forecastGeneration;
     private int requestedDayCount = 3;
 
@@ -99,6 +104,19 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
             savedId = getIntent().getStringExtra("trip_id");
             saved = savedId == null ? store.loadDraft() : store.load(savedId);
             route = saved.route;
+            if (route.source == Route.Source.GOOGLE) {
+                RouteStore.SavedRoute last = new RouteStore(this).loadRoute();
+                // Older trip files store geometry but no endpoint names. Reuse
+                // cached names only for the same endpoints; otherwise Start /
+                // Finish is accurate without spending a geocoding request.
+                if (last != null && last.route.source == Route.Source.GOOGLE
+                        && GeoMath.distanceMeters(route.points.get(0),last.route.points.get(0)) < 10
+                        && GeoMath.distanceMeters(route.points.get(route.points.size()-1),
+                                last.route.points.get(last.route.points.size()-1)) < 10) {
+                    tripOrigin = last.origin;
+                    tripDestination = last.destination;
+                }
+            }
             places = PoiAlongRoute.locate(route.points, saved.places);
             fetchedAt = saved.forecastFetchedAt;
             if (saved.elevations != null && saved.elevationDistances != null
@@ -148,6 +166,8 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     public void onMapReady(GoogleMap map) {
         tripMap = map;
         tripMap.getUiSettings().setMapToolbarEnabled(false);
+        tripMap.setPadding(0,dp(36),0,0);
+        tripMap.setOnCameraIdleListener(this::updateTripEndpointLabels);
         boolean night = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         tripMap.setMapStyle(com.google.android.gms.maps.model.MapStyleOptions.loadRawResourceStyle(this,
@@ -158,6 +178,8 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     private void drawTripMap() {
         if (tripMap == null || route == null) return;
         tripMap.clear();
+        startLabelShown = false;
+        finishLabelShown = false;
         List<LatLng> line = new ArrayList<>();
         LatLngBounds.Builder bounds = new LatLngBounds.Builder();
         for (io.github.jamerlybob.windroute.route.GeoPoint point : route.points) {
@@ -172,8 +194,18 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                     .color(ContextCompat.getColor(this,tones[i%tones.length])).width(dp(5))
                     .jointType(com.google.android.gms.maps.model.JointType.ROUND));
             if(i<days.size()-1) tripMap.addMarker(new MarkerOptions().position(line.get(day.endPointIndex))
-                    .title(getString(R.string.trip_day_title,i+1,"" )).icon(MapIcons.tent(this,i+1)));
+                    .title(getString(R.string.trip_day_title,i+1,"" )).icon(MapIcons.tent(this,i+1)).zIndex(3));
         }
+        tripStartLabel = io.github.jamerlybob.windroute.places.PlaceNameFormatter.endpoint(
+                tripOrigin,route.source == Route.Source.GPX,getString(R.string.marker_start));
+        tripFinishLabel = io.github.jamerlybob.windroute.places.PlaceNameFormatter.endpoint(
+                tripDestination,route.source == Route.Source.GPX,getString(R.string.marker_end));
+        tripStartMarker = tripMap.addMarker(new MarkerOptions().position(line.get(0)).title(tripStartLabel)
+                .anchor(.5f,48f/70f).zIndex(4)
+                .icon(MapIcons.endpoint(this,ContextCompat.getColor(this,R.color.wind_tailwind),"")));
+        tripFinishMarker = tripMap.addMarker(new MarkerOptions().position(line.get(line.size()-1)).title(tripFinishLabel)
+                .anchor(.5f,48f/70f).zIndex(4)
+                .icon(MapIcons.endpoint(this,ContextCompat.getColor(this,R.color.wind_headwind),"")));
         for (PoiAlongRoute place : places) {
             float hue = place.poi.kind == PoiKind.WATER ? BitmapDescriptorFactory.HUE_AZURE
                     : place.poi.kind == PoiKind.FOOD ? BitmapDescriptorFactory.HUE_ORANGE
@@ -187,6 +219,35 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
         }
         tripMap.setOnMapLoadedCallback(() -> tripMap.animateCamera(
                 CameraUpdateFactory.newLatLngBounds(bounds.build(), dp(24))));
+    }
+
+    private void updateTripEndpointLabels() {
+        View viewport = findViewById(R.id.trip_map);
+        if (tripStartMarker == null || tripFinishMarker == null || viewport.getWidth() == 0) return;
+        com.google.android.gms.maps.Projection projection = tripMap.getProjection();
+        android.graphics.Point start = projection.toScreenLocation(tripStartMarker.getPosition());
+        android.graphics.Point finish = projection.toScreenLocation(tripFinishMarker.getPosition());
+        MarkerLayout.Box bounds = new MarkerLayout.Box(
+                dp(8),dp(8),viewport.getWidth()-dp(8),viewport.getHeight()-dp(8));
+        MarkerLayout.Box empty = new MarkerLayout.Box(0,0,0,0);
+        MarkerLayout.Box first = tripLabelBox(start,tripStartLabel);
+        MarkerLayout.Box last = tripLabelBox(finish,tripFinishLabel);
+        boolean showStart = MarkerLayout.labelFits(first,bounds,empty,empty,null);
+        boolean showFinish = MarkerLayout.labelFits(last,bounds,empty,empty,showStart ? first : null);
+        if (showStart != startLabelShown) {
+            tripStartMarker.setIcon(MapIcons.endpoint(this,ContextCompat.getColor(this,R.color.wind_tailwind),showStart ? tripStartLabel : ""));
+            startLabelShown = showStart;
+        }
+        if (showFinish != finishLabelShown) {
+            tripFinishMarker.setIcon(MapIcons.endpoint(this,ContextCompat.getColor(this,R.color.wind_headwind),showFinish ? tripFinishLabel : ""));
+            finishLabelShown = showFinish;
+        }
+    }
+
+    private MarkerLayout.Box tripLabelBox(android.graphics.Point point, String text) {
+        float width = MapIcons.endpointLabelWidth(this,text);
+        return new MarkerLayout.Box(
+                point.x-width/2,point.y-dp(48),point.x+width/2,point.y-dp(21));
     }
 
     private void wireControls() {

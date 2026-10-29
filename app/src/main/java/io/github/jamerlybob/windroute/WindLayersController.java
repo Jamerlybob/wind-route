@@ -52,7 +52,12 @@ public final class WindLayersController {
         search.addOnLayoutChangeListener((view,left,top,right,bottom,oldLeft,oldTop,oldRight,oldBottom)-> {
             androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams params=
                     (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)activity.findViewById(R.id.layers).getLayoutParams();
-            params.topMargin=bottom+Math.round(64*activity.getResources().getDisplayMetrics().density);
+            params.topMargin = bottom + dp(12 + 72 + 12);
+            View location = activity.findViewById(R.id.map_my_location);
+            androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams locationParams =
+                    (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)location.getLayoutParams();
+            locationParams.topMargin = bottom + dp(12);
+            location.setLayoutParams(locationParams);
             activity.findViewById(R.id.layers).setLayoutParams(params);
             androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams legendParams =
                     (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)legend.getLayoutParams();
@@ -77,6 +82,7 @@ public final class WindLayersController {
             schedule();
         }
         activity.findViewById(R.id.layers).setVisibility(riding ? View.GONE : View.VISIBLE);
+        activity.findViewById(R.id.map_my_location).setVisibility(riding ? View.GONE : View.VISIBLE);
         if (riding) { activity.findViewById(R.id.wind_today_card).setVisibility(View.GONE); legend.setVisibility(View.GONE); }
         else activity.findViewById(R.id.wind_today_card).setVisibility(hasRoute ? View.GONE : View.VISIBLE);
         updateAnimation(); }
