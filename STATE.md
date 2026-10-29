@@ -1,6 +1,6 @@
 # STATE
 
-**Updated:** 2026-10-09
+**Updated:** 2026-10-30
 
 ## Where it is
 
@@ -28,6 +28,22 @@ detection with a re-route only on a tap, and arrival. Seen on the emulator:
 ride mode opening at the start of a route, standing still. NOT seen: the
 ride moving, turns arriving, the off-route banner, arrival, the
 notification. Never heard: any spoken cue.
+
+Added 2026-10-30 (Milestone 6, 179 unit tests, seen on the emulator in light
+and dark): a fresh start on every open with a "Last:" chip; moving wind
+particles and a wind speed heatmap from an Open-Meteo grid, switched from a
+Layers panel; denser route sampling with 15-minute wind; the look from
+James's mockup (`docs/design/mockup-2026-10-30.png`): dark map, glowing
+route with ring endpoints and wind arrows, pill search, wind ring badge,
+three-column share legend; a "where to ride today" card; "How far today?"
+with a suggested stop; a simpler trip planner (km a day slider, day map,
+verdict rings). James said on 2026-10-30 that the app was "working good for
+now", without saying whether he had tried riding mode.
+
+Small things seen and not fixed: the my-location button is a light square
+on the dark map; the "Last:" chip reads "Auckland to Hamilton → Finish" for
+a GPX; the trip map has no Start/Finish labels; the heatmap at one speed
+tints the whole map one colour.
 
 ## How the work is being done
 

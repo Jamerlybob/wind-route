@@ -26,7 +26,8 @@ public final class TodayStopController {
     private final LinearLayout body;
     private final Slider slider;
     private final MaterialSwitch byTime;
-    private final TextView label, result, placesCredit;
+    private final TextView label, result, stopTitle, sunsetWarning, placesCredit;
+    private final java.util.function.Consumer<LatLng> stopChanged;
     private final Button camping;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -43,15 +44,43 @@ public final class TodayStopController {
     private Long cachedSunset;
     private final Map<String,List<DaylightForecast>> daylightCache=new HashMap<>();
     private final Runnable lookup = this::lookup;
-    public TodayStopController(Activity activity, GoogleMap map) {
+    public TodayStopController(Activity activity, GoogleMap map, java.util.function.Consumer<LatLng> stopChanged) {
+        this.stopChanged = stopChanged;
         this.activity=activity; this.map=map;
         body = new LinearLayout(activity); body.setOrientation(LinearLayout.VERTICAL);
-        label=new TextView(activity); label.setText(R.string.how_far_today); body.addView(label);
+        label=new TextView(activity);
+        label.setText(R.string.how_far_today);
+        label.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        body.addView(label);
         byTime=new MaterialSwitch(activity); byTime.setText(R.string.riding_time); body.addView(byTime);
-        slider=new Slider(activity); slider.setValueFrom(10); slider.setValueTo(200); slider.setStepSize(5);
+        slider=new Slider(activity); slider.setValueFrom(10); slider.setValueTo(200); slider.setStepSize(5); slider.setTickVisible(false);
         slider.setValue(activity.getSharedPreferences("stops",0).getInt("km",50));
         slider.setContentDescription(activity.getString(R.string.how_far_today)); body.addView(slider);
-        result=new TextView(activity); body.addView(result);
+        com.google.android.material.card.MaterialCardView stopCard = new com.google.android.material.card.MaterialCardView(activity);
+        stopCard.setRadius(dp(16));
+        stopCard.setCardElevation(0);
+        stopCard.setCardBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
+                body,com.google.android.material.R.attr.colorSurfaceContainerLow));
+        stopCard.setStrokeColor(androidx.core.content.ContextCompat.getColor(activity,R.color.brand_outline_variant));
+        stopCard.setStrokeWidth(dp(1));
+        LinearLayout cardBody = new LinearLayout(activity);
+        cardBody.setOrientation(LinearLayout.VERTICAL);
+        cardBody.setPadding(dp(12),dp(12),dp(12),dp(12));
+        stopTitle=new TextView(activity);
+        stopTitle.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleSmall);
+        stopTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_tent,0,0,0);
+        stopTitle.setCompoundDrawablePadding(dp(8));
+        cardBody.addView(stopTitle);
+        result=new TextView(activity);
+        result.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+        result.setPadding(0,dp(6),0,0);
+        cardBody.addView(result);
+        sunsetWarning=new TextView(activity);
+        sunsetWarning.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall);
+        sunsetWarning.setTextColor(androidx.core.content.ContextCompat.getColor(activity,R.color.wind_headwind));
+        cardBody.addView(sunsetWarning);
+        stopCard.addView(cardBody);
+        body.addView(stopCard);
         camping=new com.google.android.material.button.MaterialButton(activity,null,com.google.android.material.R.attr.materialButtonOutlinedStyle);
         camping.setText(R.string.find_camping_here);
         camping.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_tent,0,0,0);
@@ -61,9 +90,11 @@ public final class TodayStopController {
         placesCredit.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall);
         body.addView(placesCredit);
         placesCredit.setVisibility(View.GONE);
-        ((LinearLayout)activity.findViewById(R.id.summary_content)).addView(body, 2,
-                new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams section = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,LinearLayout.LayoutParams.WRAP_CONTENT);
+        section.topMargin = dp(24);
+        section.bottomMargin = dp(8);
+        ((LinearLayout)activity.findViewById(R.id.summary_content)).addView(body,2,section);
         slider.addOnChangeListener((view,value,user) -> { if(user) {
             activity.getSharedPreferences("stops",0).edit().putInt("km",(int)value).apply(); update(); } });
         byTime.setOnCheckedChangeListener((button,checked)->update());
@@ -75,6 +106,10 @@ public final class TodayStopController {
         this.analysis=analysis; this.places=new ArrayList<>(places); this.places.addAll(foundCamping);
         body.setVisibility(analysis.route.distanceMeters>30000 ? View.VISIBLE : View.GONE);
         if (body.getVisibility()==View.VISIBLE) update();
+        else {
+            if(marker!=null) { marker.remove(); marker=null; }
+            stopChanged.accept(null);
+        }
     }
     private void update() {
         if(analysis==null) return;
@@ -87,7 +122,10 @@ public final class TodayStopController {
         if(marker!=null) marker.remove();
         marker=map.addMarker(new MarkerOptions().position(new LatLng(point.lat,point.lng))
                 .title(activity.getString(R.string.overnight_stop)).icon(MapIcons.tent(activity,0)));
-        label.setText(byTime.isChecked() ? activity.getString(R.string.riding_minutes,Math.round(slider.getValue()/5*15))
+        stopChanged.accept(new LatLng(point.lat,point.lng));
+        label.setText(byTime.isChecked() ? activity.getString(R.string.today_time_target,
+                io.github.jamerlybob.windroute.nav.DurationFormatter.format(slider.getValue()/5*15,
+                        activity.getString(R.string.duration_min),activity.getString(R.string.duration_h_min)))
                 : activity.getString(R.string.today_km,Math.round(slider.getValue())));
         String key=String.format(Locale.US,"%.3f,%.3f,%d",point.lat,point.lng,analysis.departureEpochSeconds/86400);
         render(key.equals(lastLookupKey) ? cachedName : null,key.equals(lastLookupKey) ? cachedSunset : null);
@@ -102,9 +140,18 @@ public final class TodayStopController {
         String near=name==null ? activity.getString(R.string.stop_along,units.distance(stop)) : name;
         double calm=analysis.route.durationSeconds/60.0*stop/analysis.route.distanceMeters;
         String warning=sunset!=null && arrival>sunset ? activity.getString(R.string.stop_after_sunset,StopPicker.minutesAfterSunset(arrival,sunset)) : "";
-        result.setText(activity.getString(R.string.stop_preview,near,units.distance(stop),Math.round(minutes/60),Math.round(minutes)%60,
+        Settings settings=SettingsStore.load(activity);
+        String distance=io.github.jamerlybob.windroute.units.UnitFormatter.distance(stop,settings.distanceUnit,
+                activity.getString(settings.distanceUnit==Settings.DistanceUnit.MILES
+                        ? R.string.stop_distance_miles : R.string.stop_distance_km),Locale.getDefault());
+        String duration=io.github.jamerlybob.windroute.nav.DurationFormatter.format(minutes,
+                activity.getString(R.string.duration_min),activity.getString(R.string.duration_h_min));
+        stopTitle.setText(activity.getString(R.string.stop_card_title,near));
+        result.setText(activity.getString(R.string.stop_card_details,distance,duration,
                 DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(arrival*1000)),
-                WindCostText.format(activity,minutes-calm,false),warning));
+                WindCostText.format(activity,minutes-calm,false)));
+        sunsetWarning.setText(warning);
+        sunsetWarning.setVisibility(warning.isEmpty() ? View.GONE : View.VISIBLE);
     }
     @SuppressWarnings("deprecation")
     private void lookup() {
@@ -137,5 +184,7 @@ public final class TodayStopController {
             } catch(Exception error) {main.post(()->{if(!destroyed){camping.setEnabled(true);result.setText(R.string.camping_unavailable);}});}
         });
     }
+    private int dp(int value) { return Math.round(value*activity.getResources().getDisplayMetrics().density); }
+
     public void destroy(){destroyed=true;main.removeCallbacksAndMessages(null);worker.shutdownNow();}
 }

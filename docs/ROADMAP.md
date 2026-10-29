@@ -98,11 +98,11 @@ before a ride?
 James: visual quality first, wind the star of every screen, bikepacking kept
 simple. Specs: `docs/specs/V1-wind-visuals.md`, `V2-easy-bikepacking.md`.
 
-- [ ] Fresh start on every open, with a "Last route" chip
-- [ ] Moving wind particles over the map
-- [ ] Wind speed heatmap, switched on and off from a Layers button
-- [ ] Denser route sampling, 15-minute wind, smooth colour between samples
-- [ ] Route drawn with casing, strength shading and wind arrows
-- [ ] "Where to ride today" card before a route
-- [ ] "How far today?" slider with a suggested stop
-- [ ] Simpler multi-day planner: km a day, day map, overnight stops
+- [x] Fresh start on every open, with a "Last route" chip
+- [x] Moving wind particles over the map
+- [x] Wind speed heatmap, switched on and off from a Layers button
+- [x] Denser route sampling, 15-minute wind, smooth colour between samples
+- [x] Route drawn with casing, strength shading and wind arrows
+- [x] "Where to ride today" card before a route
+- [x] "How far today?" slider with a suggested stop
+- [x] Simpler multi-day planner: km a day, day map, overnight stops

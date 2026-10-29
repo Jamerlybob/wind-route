@@ -18,28 +18,27 @@
             android:name="com.google.android.gms.maps.SupportMapFragment"
             android:layout_width="match_parent" android:layout_height="220dp"
             android:layout_marginBottom="12dp" />
-        <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/how_far_day" />
-        <com.google.android.material.slider.Slider android:id="@+id/daily_slider"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:contentDescription="@string/how_far_day"
- />
         <RadioGroup android:id="@+id/split_mode" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="horizontal">
-            <RadioButton android:id="@+id/split_days" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="@string/split_days" />
             <RadioButton android:id="@+id/split_distance" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:checked="true" android:text="@string/split_distance" />
+            <RadioButton android:id="@+id/split_days" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="@string/split_days" />
         </RadioGroup>
-        <TextView style="@style/Widget.WindRoute.SectionBody" android:text="@string/days_hint" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <EditText android:id="@+id/trip_days" android:layout_width="0dp" android:layout_height="48dp"
-                android:layout_weight="1" android:hint="@string/days_hint" android:inputType="number"
-                android:importantForAutofill="no" android:visibility="gone" android:text="@string/default_trip_days" />
-            <EditText android:id="@+id/trip_distance" android:layout_width="0dp" android:layout_height="48dp"
-                android:layout_weight="1" android:hint="@string/distance_day_hint" android:inputType="numberDecimal"
-                android:importantForAutofill="no" android:text="@string/default_trip_distance"
-                android:visibility="visible" />
+        <TextView android:id="@+id/daily_distance_label" style="@style/Widget.WindRoute.SectionTitle" android:text="@string/how_far_day" />
+        <com.google.android.material.slider.Slider android:id="@+id/daily_slider"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:contentDescription="@string/how_far_day" app:tickVisible="false" />
+        <LinearLayout android:id="@+id/day_stepper" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal" android:visibility="gone">
+            <com.google.android.material.button.MaterialButton android:id="@+id/day_minus"
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="56dp" android:layout_height="48dp"
+                android:text="@string/minus_symbol" android:contentDescription="@string/fewer_days" />
+            <TextView android:id="@+id/day_count" android:layout_width="64dp" android:layout_height="48dp"
+                android:gravity="center" android:textAppearance="?attr/textAppearanceTitleLarge" android:accessibilityLiveRegion="polite" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/day_plus"
+                style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="56dp" android:layout_height="48dp"
+                android:text="@string/plus_symbol" android:contentDescription="@string/more_days" />
         </LinearLayout>
         <com.google.android.material.button.MaterialButton android:id="@+id/more_options"
             style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content"
@@ -61,8 +60,6 @@
             android:layout_height="48dp" android:hint="@string/gap_threshold_hint"
             android:importantForAutofill="no" android:inputType="numberDecimal" android:text="@string/default_gap_threshold" />
         </LinearLayout>
-        <com.google.android.material.button.MaterialButton android:id="@+id/apply_split"
-            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/update_days" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:gravity="center" android:orientation="horizontal">
             <com.google.android.material.button.MaterialButton android:id="@+id/shift_earlier"
@@ -70,9 +67,10 @@
             <com.google.android.material.button.MaterialButton android:id="@+id/shift_later"
                 style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/shift_later" />
         </LinearLayout>
-        <TextView android:id="@+id/best_trip" style="@style/Widget.WindRoute.SectionBody"
-            android:minHeight="48dp" android:gravity="center_vertical"
-            android:background="?attr/selectableItemBackground" android:focusable="true" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/best_trip"
+            style="@style/Widget.Material3.Button.TonalButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="48dp" android:gravity="center_vertical" app:icon="@drawable/ic_arrow_forward"
+            app:iconGravity="textEnd" android:textAllCaps="false" />
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/trip_progress" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:indeterminate="true" android:visibility="gone" />

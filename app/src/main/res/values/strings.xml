@@ -34,13 +34,10 @@
     <string name="trip_title">Plan a trip</string>
     <string name="split_days">Number of days</string>
     <string name="split_distance">Distance per day</string>
-    <string name="days_hint">Days</string>
     <string name="default_trip_days" translatable="false">3</string>
     <string name="default_trip_distance" translatable="false">80</string>
     <string name="default_gap_threshold" translatable="false">40</string>
-    <string name="distance_day_hint">Kilometres per day</string>
     <string name="count_climbing">Count the climbing</string>
-    <string name="update_days">Update days</string>
     <string name="shift_earlier">← Shift one day</string>
     <string name="shift_later">Shift one day →</string>
     <string name="start_date">Start %1$s</string>
@@ -48,7 +45,6 @@
     <string name="best_trip_start">Best overall start: %1$s</string>
     <string name="outside_forecast">Outside the 8-day forecast</string>
     <string name="trip_day_title">Day %1$d · %2$s</string>
-    <string name="trip_day_summary">%1$s · %2$s up\n%3$s · %4$s\n%5$s · %6$s\nSunrise %7$s · sunset %8$s%9$s</string>
     <string name="trip_rain">%1$.0f%% rain · %2$.1f mm/h</string>
     <string name="trip_rain_chance">%1$.0f%% rain</string>
     <string name="places_none">Nothing found within %1$d m of the route.</string>
@@ -107,7 +103,7 @@
     <string name="details_secondary">%1$s · gusts to %2$s · %3$s</string>
     <string name="net_headwind">%1$s against you</string>
     <string name="net_tailwind">%1$s helping</string>
-    <string name="net_neutral">no net push</string>
+    <string name="net_neutral">Wind roughly cancels out</string>
     <string name="reverse_comparison">Same road reversed: %1$d%% %2$s. The return route may differ.</string>
     <string name="effect_headwind">headwind</string>
     <string name="effect_tailwind">tailwind</string>
@@ -278,14 +274,11 @@
     <string name="how_far_day">How far a day?</string>
     <string name="more_options">More options</string>
     <string name="riding_time">Choose by riding time</string>
-    <string name="riding_minutes">%1$d min of riding</string>
     <string name="today_km">How far today? %1$d km</string>
     <string name="find_camping_here">Find camping near here</string>
     <string name="overnight_stop">Overnight stop</string>
     <string name="stop_after_sunset">You would arrive %1$d min after sunset</string>
-    <string name="stop_preview">Stop near %1$s · %2$s · about %3$d h %4$02d with this wind · arrive %5$s\n%6$s\n%7$s</string>
     <string name="camping_unavailable">Camping lookup unavailable. Try again.</string>
-    <string name="day_sentence">%1$s · %2$s · %3$s</string>
     <string name="later_wind">Leave a day later: headwind drops from %1$s to %2$s</string>
     <string name="weather_rain_badge">rain expected</string>
     <string name="weather_dry_badge">dry</string>
@@ -319,4 +312,22 @@
     <string name="verdict_crosswind">Crosswinds for %1$d%% of the route.</string>
     <string name="verdict_calm">Light winds for %1$d%% of the route.</string>
     <string name="legend_accessible">%1$s: %2$s, %3$s.</string>
+    <string name="daily_distance_value">How far a day? %1$d km</string>
+    <string name="minus_symbol">−</string>
+    <string name="plus_symbol">+</string>
+    <string name="fewer_days">Fewer days</string>
+    <string name="more_days">More days</string>
+    <string name="day_count_value">%1$d</string>
+    <string name="day_card_summary">%1$s · %2$s up · %3$s</string>
+    <string name="day_card_details">%1$s · %2$s\n%3$s\nSunrise %4$s · sunset %5$s%6$s</string>
+    <string name="trip_badge_description">%1$s. %2$s</string>
+    <string name="forecast_just_updated">Forecast just updated</string>
+    <string name="rain_likely">rain likely</string>
+    <string name="rain_unknown">rain unavailable</string>
+    <string name="stop_card_title">Stop near %1$s</string>
+    <string name="stop_card_details">%1$s · %2$s · arrive %3$s · %4$s</string>
+    <string name="today_time_target">How far today? %1$s of riding</string>
+    <string name="trip_weather_details">%1$s · %2$s</string>
+    <string name="stop_distance_km">%1$.0f km</string>
+    <string name="stop_distance_miles">%1$.0f mi</string>
 </resources>

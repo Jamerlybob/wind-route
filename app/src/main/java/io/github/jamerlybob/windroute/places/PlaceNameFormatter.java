@@ -28,6 +28,14 @@ public final class PlaceNameFormatter {
         return String.join(", ", parts);
     }
 
+    public static String endpoint(String name, boolean imported, String fallback) {
+        // A GPX track name describes the whole ride, not either endpoint.
+        if (imported || name == null) return fallback;
+        int comma = name.indexOf(',');
+        String shortName = (comma < 0 ? name : name.substring(0,comma)).trim();
+        return shortName.isEmpty() ? fallback : shortName;
+    }
+
     private static void addDistinct(List<String> parts, String value) {
         if (value == null || value.trim().isEmpty()) {
             return;

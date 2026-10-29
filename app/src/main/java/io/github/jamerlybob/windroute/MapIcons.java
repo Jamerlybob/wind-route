@@ -7,6 +7,14 @@ import com.google.android.gms.maps.model.*;
 /** Small original tent symbol, with an optional overnight number. */
 public final class MapIcons {
     private MapIcons() { }
+    public static float endpointLabelWidth(Context context, String name) {
+        float density=context.getResources().getDisplayMetrics().density;
+        Paint text=new Paint(Paint.ANTI_ALIAS_FLAG);
+        text.setTextSize(12*density);
+        text.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+        return Math.max(48*density,Math.min(180*density,text.measureText(name))+20*density);
+    }
+
     public static BitmapDescriptor endpoint(Context context, int color, String name) {
         float density = context.getResources().getDisplayMetrics().density;
         android.text.TextPaint text = new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
@@ -19,10 +27,10 @@ public final class MapIcons {
         Canvas canvas = new Canvas(image);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(0xe6101b29);
-        canvas.drawRoundRect(0,0,width,27*density,9*density,9*density,paint);
+        if (!label.isEmpty()) canvas.drawRoundRect(0,0,width,27*density,9*density,9*density,paint);
         text.setColor(Color.WHITE);
         text.setTextAlign(Paint.Align.CENTER);
-        canvas.drawText(label,width/2f,18*density,text);
+        if (!label.isEmpty()) canvas.drawText(label,width/2f,18*density,text);
         paint.setColor(0xff101b29);
         canvas.drawCircle(width/2f,48*density,9*density,paint);
         paint.setColor(color);

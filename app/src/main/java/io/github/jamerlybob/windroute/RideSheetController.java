@@ -190,10 +190,12 @@ public final class RideSheetController {
                         units.windSpeed(Math.abs(best.averageHeadwindKmh)))
                 : activity.getString(R.string.net_tailwind,
                         units.windSpeed(Math.abs(best.averageHeadwindKmh)));
-        String wet = best.hasRainData && ((!Double.isNaN(best.wettestRainMm)
-                && best.wettestRainMm > 0) || (!Double.isNaN(best.rainChancePercent)
-                && best.rainChancePercent >= 30))
-                ? activity.getString(R.string.rain_possible) : activity.getString(R.string.dry);
+        io.github.jamerlybob.windroute.weather.RainDisplay.Outlook rain =
+                io.github.jamerlybob.windroute.weather.RainDisplay.outlook(best.rainChancePercent,best.wettestRainMm);
+        int rainWords = rain == io.github.jamerlybob.windroute.weather.RainDisplay.Outlook.LIKELY ? R.string.rain_likely
+                : rain == io.github.jamerlybob.windroute.weather.RainDisplay.Outlook.POSSIBLE ? R.string.rain_possible
+                : rain == io.github.jamerlybob.windroute.weather.RainDisplay.Outlook.DRY ? R.string.dry : R.string.rain_unknown;
+        String wet = activity.getString(rainWords);
         String text = activity.getString(R.string.best_departure, android.text.format.DateUtils.formatDateTime(activity, best.departureEpochSeconds * 1000,
                 android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY | android.text.format.DateUtils.FORMAT_SHOW_TIME
                         | android.text.format.DateUtils.FORMAT_ABBREV_WEEKDAY),

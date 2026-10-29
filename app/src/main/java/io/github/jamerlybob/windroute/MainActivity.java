@@ -438,7 +438,7 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                 isNight() ? R.raw.map_style_night : R.raw.map_style_day));
         renderer = new RouteMapRenderer(this, map, findViewById(R.id.main),
                 searchCard, summaryCard);
-        todayStop = new TodayStopController(this, map);
+        todayStop = new TodayStopController(this, map, renderer::setStopPosition);
         windLayers = new WindLayersController(this, map);
         windLayers.setCameraIdle(renderer::redrawArrows);
         windLayers.setActive(true);

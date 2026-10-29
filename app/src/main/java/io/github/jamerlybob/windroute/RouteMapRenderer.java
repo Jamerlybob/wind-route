@@ -29,6 +29,7 @@ import io.github.jamerlybob.windroute.elevation.ClimbWind;
 import io.github.jamerlybob.windroute.route.CyclingWarnings;
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
+import io.github.jamerlybob.windroute.route.MarkerLayout;
 import io.github.jamerlybob.windroute.route.Route;
 import io.github.jamerlybob.windroute.poi.PoiAlongRoute;
 import io.github.jamerlybob.windroute.poi.PoiKind;
@@ -53,6 +54,11 @@ public final class RouteMapRenderer {
     private RideAnalysis analysis;
     private Settings settings;
     private List<GeoPoint> lastFittedPoints;
+    private com.google.android.gms.maps.model.Marker startMarker, finishMarker;
+    private String startLabel = "", finishLabel = "";
+    private boolean startLabelShown, finishLabelShown;
+    private LatLng stopPosition;
+    private final List<LatLng> markerPositions = new ArrayList<>();
 
     public RouteMapRenderer(Activity activity, GoogleMap map, View root,
                             View searchCard, View summaryCard) {
@@ -72,6 +78,11 @@ public final class RouteMapRenderer {
         this.settings = settings;
         Route route = analysis.route;
         map.clear();
+        startMarker = null;
+        finishMarker = null;
+        markerPositions.clear();
+        startLabelShown = false;
+        finishLabelShown = false;
         List<LatLng> all = new ArrayList<>();
         for (GeoPoint point : route.points) {
             all.add(new LatLng(point.lat, point.lng));
@@ -89,12 +100,17 @@ public final class RouteMapRenderer {
 
         String startName = ((TextView) activity.findViewById(R.id.origin)).getText().toString();
         String endName = ((TextView) activity.findViewById(R.id.destination)).getText().toString();
-        if (startName.trim().isEmpty()) startName = activity.getString(R.string.marker_start);
-        if (endName.trim().isEmpty()) endName = activity.getString(R.string.marker_end);
-        map.addMarker(new MarkerOptions().position(all.get(0)).title(startName).anchor(.5f, 48f/70f)
-                .icon(MapIcons.endpoint(activity, ContextCompat.getColor(activity,R.color.wind_tailwind), startName)));
-        map.addMarker(new MarkerOptions().position(all.get(all.size() - 1)).title(endName).anchor(.5f,48f/70f)
-                .icon(MapIcons.endpoint(activity, ContextCompat.getColor(activity,R.color.wind_headwind), endName)));
+        startLabel = io.github.jamerlybob.windroute.places.PlaceNameFormatter.endpoint(startName,
+                route.source == Route.Source.GPX,activity.getString(R.string.marker_start));
+        finishLabel = io.github.jamerlybob.windroute.places.PlaceNameFormatter.endpoint(endName,
+                route.source == Route.Source.GPX,activity.getString(R.string.marker_end));
+        startMarker = map.addMarker(new MarkerOptions().position(all.get(0)).title(startLabel).anchor(.5f,48f/70f)
+                .icon(MapIcons.endpoint(activity,ContextCompat.getColor(activity,R.color.wind_tailwind),"")));
+        finishMarker = map.addMarker(new MarkerOptions().position(all.get(all.size()-1)).title(finishLabel).anchor(.5f,48f/70f)
+                .icon(MapIcons.endpoint(activity,ContextCompat.getColor(activity,R.color.wind_headwind),"")));
+        markerPositions.add(all.get(0));
+        markerPositions.add(all.get(all.size()-1));
+        redrawArrows();
         fillSummary(analysis, settings, route.durationSeconds, windCost);
         summaryCard.setVisibility(View.VISIBLE);
         if (rideMode) {
@@ -111,11 +127,57 @@ public final class RouteMapRenderer {
 
     private final List<com.google.android.gms.maps.model.Marker> arrows = new ArrayList<>();
 
+    public void setStopPosition(LatLng position) {
+        stopPosition = position;
+        redrawArrows();
+    }
+
+    private void redrawEndpointLabels() {
+        if (startMarker == null || finishMarker == null || root.getWidth() == 0) return;
+        com.google.android.gms.maps.Projection projection = map.getProjection();
+        MarkerLayout.Box viewport = new MarkerLayout.Box(
+                dp(8),dp(8),root.getWidth()-dp(8),root.getHeight()-dp(8));
+        MarkerLayout.Box search = viewBox(searchCard);
+        MarkerLayout.Box sheet = viewBox(summaryCard);
+        android.graphics.Point start = projection.toScreenLocation(startMarker.getPosition());
+        android.graphics.Point finish = projection.toScreenLocation(finishMarker.getPosition());
+        MarkerLayout.Box startBox = labelBox(start,startLabel);
+        MarkerLayout.Box finishBox = labelBox(finish,finishLabel);
+        boolean showStart = MarkerLayout.labelFits(startBox,viewport,search,sheet,null);
+        boolean showFinish = MarkerLayout.labelFits(
+                finishBox,viewport,search,sheet,showStart ? startBox : null);
+        // Change icons only when visibility changes, not on every camera idle.
+        if (showStart != startLabelShown) {
+            startMarker.setIcon(MapIcons.endpoint(activity,ContextCompat.getColor(activity,R.color.wind_tailwind),showStart ? startLabel : ""));
+            startLabelShown = showStart;
+        }
+        if (showFinish != finishLabelShown) {
+            finishMarker.setIcon(MapIcons.endpoint(activity,ContextCompat.getColor(activity,R.color.wind_headwind),showFinish ? finishLabel : ""));
+            finishLabelShown = showFinish;
+        }
+    }
+
+    private MarkerLayout.Box viewBox(View view) {
+        if (view.getVisibility()!=View.VISIBLE) return new MarkerLayout.Box(0,0,0,0);
+        return new MarkerLayout.Box(view.getX(),view.getY(),
+                view.getX()+view.getWidth(),view.getY()+view.getHeight());
+    }
+
+    private MarkerLayout.Box labelBox(android.graphics.Point ring, String text) {
+        float width = MapIcons.endpointLabelWidth(activity,text);
+        return new MarkerLayout.Box(
+                ring.x-width/2,ring.y-dp(48),ring.x+width/2,ring.y-dp(21));
+    }
+
     /** Screen spacing keeps the wind direction marks legible at every zoom. */
     public void redrawArrows() {
         for (com.google.android.gms.maps.model.Marker arrow : arrows) arrow.remove();
         arrows.clear();
         if (analysis == null || rideMode) return;
+        redrawEndpointLabels();
+        List<android.graphics.Point> protectedMarkers = new ArrayList<>();
+        for (LatLng position : markerPositions) protectedMarkers.add(map.getProjection().toScreenLocation(position));
+        if (stopPosition != null) protectedMarkers.add(map.getProjection().toScreenLocation(stopPosition));
         android.graphics.Point previous = null;
         for (RouteWind.Stretch stretch : analysis.wind.stretches) {
             GeoPoint point = analysis.route.points.get((stretch.fromIndex + stretch.toIndex)/2);
@@ -130,6 +192,13 @@ public final class RouteMapRenderer {
             double length = Math.max(1,Math.hypot(dx,dy));
             LatLng arrowPosition = map.getProjection().fromScreenLocation(new android.graphics.Point(
                     (int)(screen.x - dy / length * dp(15)), (int)(screen.y + dx / length * dp(15))));
+            android.graphics.Point arrowScreen = map.getProjection().toScreenLocation(arrowPosition);
+            boolean blocked = false;
+            for (android.graphics.Point marker : protectedMarkers) {
+                if (MarkerLayout.nearMarker(
+                        arrowScreen.x,arrowScreen.y,marker.x,marker.y,dp(40))) { blocked=true; break; }
+            }
+            if (blocked) continue;
             arrows.add(map.addMarker(new MarkerOptions().position(arrowPosition).anchor(.5f,.5f).flat(true)
                     .rotation((float)((stretch.windFromDegrees+180)%360))
                     .icon(MapIcons.arrow(activity,ContextCompat.getColor(activity,colorFor(stretch.effect))))
@@ -157,6 +226,7 @@ public final class RouteMapRenderer {
     /** Adds small, kind-coloured OSM markers after the route redraw clears the map. */
     public void showPlaces(List<PoiAlongRoute> places) {
         for (PoiAlongRoute place : places) {
+            markerPositions.add(new LatLng(place.poi.position.lat,place.poi.position.lng));
             float hue = place.poi.kind == PoiKind.WATER ? BitmapDescriptorFactory.HUE_AZURE
                     : place.poi.kind == PoiKind.FOOD ? BitmapDescriptorFactory.HUE_ORANGE
                     : place.poi.kind == PoiKind.CAMPING ? BitmapDescriptorFactory.HUE_GREEN
