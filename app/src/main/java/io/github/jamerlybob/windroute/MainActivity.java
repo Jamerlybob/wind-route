@@ -169,7 +169,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
-        if (state.route != null) restoreLastRouteIfNeeded();
+        if (getIntent().getBooleanExtra("ride_alert", false) && openRideAlert()) { /* Private forecast snapshot restored. */ }
+        else if (state.route != null) restoreLastRouteIfNeeded();
         else if (getIntent().getLongExtra("trip_departure", 0) > 0) restoreLastRouteIfNeeded();
         else {
             RouteStore.SavedRoute last = routeStore.loadRoute();
@@ -490,6 +491,27 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
                         windLayers.setRider(position);
                     });
         } catch(SecurityException | IllegalArgumentException ignored) { }
+    }
+
+    /** Opens the exact route/time checked by the job, even without a connection. */
+    private boolean openRideAlert() {
+        try {
+            AlertsStore alerts = new AlertsStore(this);
+            Route route = io.github.jamerlybob.windroute.route.RouteJson.read(alerts.prefs.getString("preview_route", ""));
+            io.github.jamerlybob.windroute.trip.TripStore.ForecastCache cache =
+                    io.github.jamerlybob.windroute.trip.TripStore.decodeForecastCache(alerts.prefs.getString("preview_weather", ""));
+            if (cache.forecasts.isEmpty()) return false;
+            state.route = route;
+            state.departureEpochSeconds = alerts.prefs.getLong("preview_departure", 0);
+            state.sampleIndexes = cache.forecasts.get(0).sampleIndexes;
+            state.forecasts = cache.forecasts.get(0).forecasts;
+            state.elevation = null;
+            originInput.setText(alerts.prefs.getString("preview_name", getString(R.string.marker_start)));
+            destinationInput.setText(R.string.marker_end);
+            departurePicker.displaySelection(state.departureEpochSeconds);
+            getIntent().removeExtra("ride_alert");
+            return true;
+        } catch (Exception ignored) { return false; }
     }
 
     private void restoreLastRouteIfNeeded() {
@@ -1027,24 +1049,29 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         status.setText(R.string.places_busy);
         background.execute(() -> {
             try {
-                List<Poi> found = OverpassClient.fetch(lookupRoute.points,
-                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING, PoiKind.TOWN), 500);
-                List<PoiAlongRoute> located = PoiAlongRoute.locate(lookupRoute.points, found);
+                OverpassClient.Result result = OverpassClient.lookup(lookupRoute.points,
+                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING, PoiKind.TOWN, PoiKind.BIKE_SHOP), 500,
+                        (piece,total,partial) -> mainThread.post(() -> {
+                            if (!isDestroyed() && lookupRoute == state.route)
+                                status.setText(getString(R.string.places_piece_progress,piece,total));
+                        }));
+                List<PoiAlongRoute> located = PoiAlongRoute.locate(lookupRoute.points, result.places);
                 mainThread.post(() -> {
                     if (isDestroyed()) return;
                     findViewById(R.id.find_places).setEnabled(true);
                     findViewById(R.id.places_progress).setVisibility(View.GONE);
                     if (lookupRoute != state.route) { status.setVisibility(View.GONE); return; }
-                    status.setText(located.isEmpty() ? getString(R.string.places_none, 500)
-                            : getString(R.string.places_results, located.size()));
-                    showPlaces(located);
+                    status.setText(PlacesLookupText.result(this,result));
+                    if (!result.failed() || !located.isEmpty()) showPlaces(located);
+                    // A failed retry must not erase places from an earlier lookup.
+
                 });
             } catch (Exception error) {
                 mainThread.post(() -> {
                     if (isDestroyed()) return;
                     findViewById(R.id.find_places).setEnabled(true);
                     findViewById(R.id.places_progress).setVisibility(View.GONE);
-                    status.setText(R.string.places_error);
+                    status.setText(R.string.places_network_error);
                 });
             }
         });
@@ -1057,15 +1084,8 @@ public final class MainActivity extends AppCompatActivity implements OnMapReadyC
         findViewById(R.id.places_credit).setVisibility(View.VISIBLE);
         if (places.isEmpty()) showMessage(getString(R.string.places_none, 500));
         PlacesListController.append(this, list, places, settings, (located, name, kind) ->
-                new AlertDialog.Builder(this).setTitle(name)
-                    .setMessage(kind + (located.poi.openingHours == null ? ""
-                            : "\n" + located.poi.openingHours))
-                    .setPositiveButton(R.string.add_to_export, (dialog, which) -> {
-                        state.exportWaypoints.add(new GpxParser.Waypoint(located.poi.position,
-                                name, null));
-                        routeStore.saveExportWaypoints(state.exportWaypoints);
-                        showMessage(getString(R.string.added_to_export));
-                    }).setNegativeButton(android.R.string.cancel, null).show());
+                PlaceDetailsController.show(this, map, located, name, kind, settings,
+                        state.exportWaypoints, () -> routeStore.saveExportWaypoints(state.exportWaypoints)));
         if (renderer != null) renderer.showPlaces(places);
     }
 

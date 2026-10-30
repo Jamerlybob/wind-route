@@ -33,6 +33,7 @@ public final class WindLayersController {
     private LatLng rider;
     public void setRider(LatLng rider) { this.rider=rider; redraw(); }
     private WindField field;
+    private boolean failureShown;
     private GroundOverlay heat;
     private volatile boolean moving, speed, active, riding, cameraMoving, loading, destroyed, hasRoute;
     private long time = System.currentTimeMillis() / 1000, fetchedHour = -1;
@@ -47,7 +48,7 @@ public final class WindLayersController {
         preferences = activity.getSharedPreferences(SettingsStore.PREFERENCES_NAME, 0);
         moving = preferences.getBoolean("moving_wind", true);
         speed = preferences.getBoolean("speed_wind", false);
-        activity.findViewById(R.id.layers).setOnClickListener(v -> showChoices());
+        activity.findViewById(R.id.layers).setOnClickListener(v -> { schedule(); showChoices(); });
         View search=activity.findViewById(R.id.search_card);
         search.addOnLayoutChangeListener((view,left,top,right,bottom,oldLeft,oldTop,oldRight,oldBottom)-> {
             androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams params=
@@ -59,13 +60,22 @@ public final class WindLayersController {
             locationParams.topMargin = bottom + dp(12);
             location.setLayoutParams(locationParams);
             activity.findViewById(R.id.layers).setLayoutParams(params);
+            View ring = activity.findViewById(R.id.layers_progress);
+            androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams ringParams =
+                    (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)ring.getLayoutParams();
+            ringParams.topMargin = params.topMargin + dp(4);
+            ring.setLayoutParams(ringParams);
             androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams legendParams =
                     (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)legend.getLayoutParams();
             legendParams.topMargin = bottom + Math.round(12 * activity.getResources().getDisplayMetrics().density);
             legend.setLayoutParams(legendParams);
             if(!hasRoute) map.setPadding(0,bottom,0,0);
         });
-        map.setOnCameraMoveStartedListener(reason -> { cameraMoving = true; updateAnimation(); });
+        map.setOnCameraMoveStartedListener(reason -> { cameraMoving = true; updateAnimation(); schedule(); });
+        // A camera update (including fitting a long route) can supersede an
+        // earlier movement. Debounce actual movement too, so a stale start flag
+        // can never strand loading while waiting for an idle callback.
+        map.setOnCameraMoveListener(this::schedule);
         map.setOnCameraIdleListener(() -> { cameraMoving = false; schedule(); updateAnimation(); cameraIdle.run(); });
         schedule();
     }
@@ -87,7 +97,12 @@ public final class WindLayersController {
         else activity.findViewById(R.id.wind_today_card).setVisibility(hasRoute ? View.GONE : View.VISIBLE);
         updateAnimation(); }
     public void setActive(boolean active) { this.active = active; updateAnimation(); if (active) schedule(); }
+    private void setLoading(boolean value) {
+        loading = value;
+        activity.findViewById(R.id.layers_progress).setVisibility(value && active && !riding ? View.VISIBLE : View.GONE);
+    }
     private void updateAnimation() {
+        setLoading(loading);
         LatLngBounds visible = map.getProjection().getVisibleRegion().latLngBounds;
         boolean covered = field != null
                 && field.covers(visible.southwest.latitude, visible.southwest.longitude)
@@ -96,28 +111,23 @@ public final class WindLayersController {
     }
     private void schedule() { main.removeCallbacks(request); if (!destroyed && active) main.postDelayed(request, 1000); }
     private void load() {
-        if (destroyed || loading || !active || riding || cameraMoving) return;
+        if (destroyed || loading || !active || riding) return;
+        // This runs only after a full second without camera movement.
+        cameraMoving = false;
         if (!moving && !speed && hasRoute) return;
         LatLngBounds visible = map.getProjection().getVisibleRegion().latLngBounds;
-        // Bounds crossing the date line are fetched as a narrow unwrapped interval.
-        double west = visible.southwest.longitude, east = visible.northeast.longitude;
-        if (east < west) east += 360;
-        if (field != null && fetchedHour == time / 3600
-                && field.covers(visible.southwest.latitude, west)
-                && field.covers(visible.northeast.latitude, east)) { redraw(); return; }
-        double latPad = Math.max(.02, (visible.northeast.latitude - visible.southwest.latitude) * .2);
-        double lngPad = Math.max(.02, (east - west) * .2);
-        double south = Math.max(-85, visible.southwest.latitude - latPad);
-        double north = Math.min(85, visible.northeast.latitude + latPad);
-        double left = west - lngPad;
-        double right = east + lngPad;
-        if (right - left >= 360) {
-            left = -179.99;
-            right = 179.99;
-        }
-        if (right <= left) return;
-        if (north <= south) return;
-        loading = true;
+        WindGridArea visibleArea = WindGridArea.camera(visible.southwest.latitude,
+                visible.southwest.longitude, visible.northeast.latitude, visible.northeast.longitude);
+        android.widget.Button button = activity.findViewById(R.id.layers);
+        button.setText(visibleArea.supported ? R.string.layers : R.string.wind_zoom_in);
+        button.setContentDescription(activity.getString(visibleArea.supported ? R.string.layers : R.string.wind_area_too_large));
+        if (!visibleArea.supported) { flow.setRunning(false); return; }
+        // Require the padded camera area, so panning a little does not immediately
+        // exhaust coverage. Never clip a long route's viewport to a city-sized box.
+        if (field != null && fetchedHour == time / 3600 && visibleArea.coveredBy(field)) { redraw(); return; }
+        double south = visibleArea.south, north = visibleArea.north;
+        double left = visibleArea.west, right = visibleArea.east;
+        setLoading(true);
         final long requestedHour = time / 3600;
         // A settled-camera debounce, coverage cache and single in-flight request
         // protect the free tier (600/minute, 10,000/day). No Google HTTP calls.
@@ -126,16 +136,22 @@ public final class WindLayersController {
         worker.execute(() -> {
             try {
                 if (riding || destroyed || !active) {
-                    main.post(() -> loading = false);
+                    main.post(() -> setLoading(false));
                     return;
                 }
                 WindField loaded = WindGridClient.fetch(south, requestWest, north, requestEast);
-                main.post(() -> { loading = false; if (destroyed) return;
-                    field = loaded; fetchedHour = requestedHour; redraw();
+                main.post(() -> { setLoading(false); if (destroyed) return;
+                    failureShown = false; field = loaded; fetchedHour = requestedHour; redraw();
                     schedule();
                 });
             } catch (Exception error) {
-                main.post(() -> { loading = false;
+                main.post(() -> { setLoading(false);
+                    if (destroyed) return;
+                    if (!failureShown) {
+                        failureShown = true;
+                        com.google.android.material.snackbar.Snackbar.make(activity.findViewById(R.id.main),
+                                R.string.wind_grid_failure, com.google.android.material.snackbar.Snackbar.LENGTH_LONG).show();
+                    }
                     if (!hasRoute) today.setText(R.string.wind_unavailable); });
             }
         });

@@ -58,6 +58,12 @@ public final class DeparturePickerController {
     }
 
     public void select(long epochSeconds) {
+        displaySelection(epochSeconds);
+        listener.onDepartureChanged(epochSeconds);
+    }
+
+    /** Restores a notification snapshot without changing its departure or fetching weather. */
+    public void displaySelection(long epochSeconds) {
         selectedEpochSeconds = epochSeconds;
         choose.setText(formatChip(epochSeconds));
         changingChip = true;
@@ -65,7 +71,6 @@ public final class DeparturePickerController {
         // ChipGroup listener, so distinguish it from a rider's tap.
         chips.check(R.id.depart_choose);
         changingChip = false;
-        listener.onDepartureChanged(epochSeconds);
     }
 
     private void openDatePicker() {

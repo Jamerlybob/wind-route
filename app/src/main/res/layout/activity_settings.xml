@@ -68,9 +68,17 @@
         <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/cue_less_talk"
             android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/cue_less_talk" />
 
-        <TextView
-            style="@style/Widget.WindRoute.SettingLabel"
-            android:text="@string/about_data_title" />
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/alerts_title" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/alerts_enabled"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/alerts_enable" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/alerts_schedule" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/alerts_route"
+            style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/alerts_time"
+            style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" />
+        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/alerts_bad"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/alerts_bad" />
+        <TextView style="@style/Widget.WindRoute.SettingLabel" android:text="@string/about_data_title" />
 
         <TextView
             android:layout_width="match_parent"

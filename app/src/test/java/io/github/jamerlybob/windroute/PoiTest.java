@@ -24,25 +24,20 @@ import io.github.jamerlybob.windroute.route.GeoPoint;
 public class PoiTest {
 
     @Test
-    public void queryAsksForEveryTagAsNodesAndWays() {
+    public void queryCombinesKindsOncePerKeyForNodesWaysAndRelations() {
         String query = OverpassClient.buildQuery(
                 Arrays.asList(new GeoPoint(-36.85, 174.76), new GeoPoint(-36.86, 174.77)),
                 Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING,
                         PoiKind.BIKE_SHOP, PoiKind.TOILETS, PoiKind.SHELTER), 500);
 
-        assertTrue(query.startsWith("[out:json][timeout:25];"));
-        assertTrue(query.contains("node[\"amenity\"=\"drinking_water\"]"));
-        assertTrue(query.contains("way[\"shop\"=\"supermarket\"]"));
-        assertTrue(query.contains("node[\"shop\"=\"convenience\"]"));
-        assertTrue(query.contains("way[\"amenity\"=\"cafe\"]"));
-        assertTrue(query.contains("node[\"amenity\"=\"restaurant\"]"));
-        assertTrue(query.contains("way[\"amenity\"=\"fast_food\"]"));
-        assertTrue(query.contains("node[\"tourism\"=\"camp_site\"]"));
-        assertTrue(query.contains("way[\"tourism\"=\"caravan_site\"]"));
-        assertTrue(query.contains("node[\"shop\"=\"bicycle\"]"));
-        assertTrue(query.contains("way[\"amenity\"=\"toilets\"]"));
-        assertTrue(query.contains("node[\"amenity\"=\"shelter\"]"));
-        assertTrue(query.endsWith("out center;"));
+        assertTrue(query.startsWith("[out:json][timeout:60];"));
+        assertTrue(query.contains("nwr[\"amenity\"~\"^(drinking_water|cafe|restaurant|fast_food|toilets|shelter)$\"]"));
+        assertTrue(query.contains("nwr[\"shop\"~\"^(supermarket|convenience|bicycle)$\"]"));
+        assertTrue(query.contains("nwr[\"tourism\"~\"^(camp_site|caravan_site)$\"]"));
+        assertFalse(query.contains("  node["));
+        assertFalse(query.contains("  way["));
+        assertTrue(query.contains("out center tags;"));
+        assertTrue(query.endsWith("node._;out body;")); // `tags` alone omits node coordinates.
         assertTrue(query.contains("-36.850000,174.760000,-36.860000,174.770000)"));
     }
 
@@ -58,7 +53,7 @@ public class PoiTest {
     }
 
     @Test
-    public void longRouteIsThinnedToOneHundredEvenlySpacedPoints() {
+    public void queryPieceHasAtMostFiftyOneEvenlySpacedPoints() {
         List<GeoPoint> route = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
             // Deliberately cluster most original points near the start. Sampling
@@ -72,11 +67,11 @@ public class PoiTest {
         String around = query.substring(query.indexOf("(around:"), query.indexOf(");"));
         String[] parts = around.split(",");
 
-        assertEquals(201, parts.length); // radius, then 100 latitude/longitude pairs
+        assertEquals(103, parts.length); // radius, then 51 latitude/longitude pairs
         assertEquals(0.0, Double.parseDouble(parts[1]), 0.0);
         assertEquals(0.0, Double.parseDouble(parts[2]), 0.000001);
-        assertEquals(0.5, Double.parseDouble(parts[102]), 0.006);
-        assertEquals(1.0, Double.parseDouble(parts[200].replace(")", "")), 0.000001);
+        assertEquals(0.5, Double.parseDouble(parts[52]), 0.006);
+        assertEquals(1.0, Double.parseDouble(parts[102].replace(")", "")), 0.000001);
     }
 
     @Test

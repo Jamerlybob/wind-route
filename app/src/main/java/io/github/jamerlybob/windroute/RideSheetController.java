@@ -241,11 +241,21 @@ public final class RideSheetController {
         view.setText(text.toString());
     }
 
+    private boolean gustsExpanded;
+
     private void fillGusts(List<GustWarnings.Warning> warnings, UnitText units) {
         View section = activity.findViewById(R.id.gust_section);
         LinearLayout list = activity.findViewById(R.id.gust_list);
         list.removeAllViews();
         section.setVisibility(warnings.isEmpty() ? View.GONE : View.VISIBLE);
+        double max = 0;
+        for (GustWarnings.Warning warning : warnings) max = Math.max(max, warning.maxGustKmh);
+        TextView summary = activity.findViewById(R.id.gust_summary);
+        summary.setText(activity.getResources().getQuantityString(R.plurals.gust_summary,
+                warnings.size(), units.windSpeed(max), warnings.size()));
+        list.setVisibility(gustsExpanded ? View.VISIBLE : View.GONE);
+        summary.setOnClickListener(v -> { gustsExpanded = !gustsExpanded;
+            list.setVisibility(gustsExpanded ? View.VISIBLE : View.GONE); });
         for (GustWarnings.Warning warning : warnings) {
             TextView line = lineView();
             line.setText(activity.getString(R.string.gust_warning,
@@ -256,6 +266,9 @@ public final class RideSheetController {
             list.addView(line);
         }
     }
+
+    private boolean allClimbs;
+    private Object climbsRoute;
 
     private void fillHills(RideAnalysis analysis, Settings settings, UnitText units,
                            boolean loading, boolean failed) {
@@ -281,7 +294,11 @@ public final class RideSheetController {
                 analysis.climbWinds, settings);
         status.setText(analysis.climbs.isEmpty()
                 ? activity.getString(R.string.hills_none) : "");
-        for (int i = 0; i < analysis.climbs.size(); i++) {
+        if (climbsRoute != analysis.route.points) { allClimbs=false; climbsRoute=analysis.route.points; }
+        java.util.List<Integer> visible = allClimbs ? new java.util.ArrayList<>()
+                : io.github.jamerlybob.windroute.elevation.ClimbSelection.biggest(analysis.climbs,3);
+        if (allClimbs) for (int i=0;i<analysis.climbs.size();i++) visible.add(i);
+        for (int i : visible) {
             ClimbDetector.Climb climb = analysis.climbs.get(i);
             ClimbWind climbWind = analysis.climbWinds.get(i);
             double gain = UnitFormatter.elevation(climb.gainMeters, settings.elevationUnit);
@@ -302,6 +319,14 @@ public final class RideSheetController {
             }
             list.addView(line);
         }
+        if (analysis.climbs.size()>3) {
+            com.google.android.material.button.MaterialButton more = new com.google.android.material.button.MaterialButton(activity);
+            more.setText(allClimbs ? activity.getString(R.string.show_fewer_climbs)
+                    : activity.getString(R.string.show_all_climbs,analysis.climbs.size()));
+            more.setOnClickListener(v -> { allClimbs=!allClimbs; fillHills(analysis,settings,units,loading,failed); });
+            list.addView(more);
+        }
+
     }
 
     private TextView lineView() {

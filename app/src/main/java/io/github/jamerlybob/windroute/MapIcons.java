@@ -51,6 +51,21 @@ public final class MapIcons {
         paint.setColor(color);paint.setStyle(Paint.Style.FILL);canvas.drawPath(arrow,paint);
         return BitmapDescriptorFactory.fromBitmap(image);
     }
+    public static BitmapDescriptor gust(Context context) {
+        float density = context.getResources().getDisplayMetrics().density;
+        Bitmap image = Bitmap.createBitmap((int)(28*density), (int)(28*density), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(androidx.core.content.ContextCompat.getColor(context, R.color.map_control_surface));
+        canvas.drawCircle(14*density, 14*density, 14*density, paint);
+        android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_wind);
+        if (icon != null) {
+            icon.setTint(androidx.core.content.ContextCompat.getColor(context, R.color.wind_crosswind));
+            icon.setBounds((int)(3*density), (int)(3*density), (int)(25*density), (int)(25*density));
+            icon.draw(canvas);
+        }
+        return BitmapDescriptorFactory.fromBitmap(image);
+    }
     public static BitmapDescriptor tent(Context context, int number) {
         float density=context.getResources().getDisplayMetrics().density;
         Bitmap image=Bitmap.createBitmap((int)(40*density),(int)(40*density),Bitmap.Config.ARGB_8888);

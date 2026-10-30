@@ -44,6 +44,19 @@ The three small things seen after that (my-location button, the "Last:"
 chip for a GPX, labels on the trip map) were fixed the same day. Still
 seen: the heatmap at one speed tints the whole map one colour.
 
+Also 2026-10-30 (V6, V7; 198 tests): the wind layer shows a loading ring
+and a retry message instead of nothing, and works over a 115 km route;
+places are looked up in 25 km pieces one after another with progress (1084
+found on Auckland to Hamilton; before this the single big query timed
+out); title-case place groups and a place card with "Add to GPX export";
+gust markers on the route and a one-line gust summary; the three biggest
+climbs with "Show all"; the elevation profile no longer clips; legacy
+launcher icons replaced; a "good ride day" alert (Settings > Alerts,
+platform JobScheduler, one Open-Meteo request each evening). The alert has
+not been seen firing: it only runs between 5 and 11 PM. Code readability
+of `RideAlertJobService` (wildcard imports, long lines) is below the
+project standard: give it a comment and tidy pass.
+
 ## How the work is being done
 
 Claude writes a spec in `docs/specs/`, Codex builds it with

@@ -69,17 +69,14 @@ public final class ElevationProfileView extends View {
         // Canvas coordinates begin at the top-left: x grows right and y grows
         // down. These margins leave room for the two sets of axis labels.
         double total = profile.distanceMeters[profile.size() - 1];
-        double low = profile.elevationMeters[0];
-        double high = low;
-        for (double height : profile.elevationMeters) {
-            low = Math.min(low, height);
-            high = Math.max(high, height);
-        }
-        double range = Math.max(10, high - low);
-        // The lowest point is drawn a little above the bottom edge. Without
-        // this a flat stretch at the lowest height (a waterfront road, say)
-        // has no height at all and looks as if the profile were missing.
-        float lowestY = bottom - 6 * density;
+        io.github.jamerlybob.windroute.elevation.ProfileScale scale =
+                io.github.jamerlybob.windroute.elevation.ProfileScale.from(profile.elevationMeters);
+        double low = scale.low, high = scale.high;
+        float lowestY = bottom;
+        // Explicit clipping keeps terrain strokes inside the plot, independently
+        // of the surrounding sheet and Start ride button's layout.
+        int plot = canvas.save();
+        canvas.clipRect(left,top,right,bottom);
 
         // Each neighbouring pair is a small filled trapezoid. Colouring those
         // pieces independently lets the top edge read as both terrain and wind
@@ -87,8 +84,8 @@ public final class ElevationProfileView extends View {
         for (int i = 1; i < profile.size(); i++) {
             float x0 = x(profile.distanceMeters[i - 1], total, left, right);
             float x1 = x(profile.distanceMeters[i], total, left, right);
-            float y0 = y(profile.elevationMeters[i - 1], low, range, top, lowestY);
-            float y1 = y(profile.elevationMeters[i], low, range, top, lowestY);
+            float y0 = y(profile.elevationMeters[i - 1], scale, top, lowestY);
+            float y1 = y(profile.elevationMeters[i], scale, top, lowestY);
             area.reset();
             area.moveTo(x0, bottom);
             area.lineTo(x0, y0);
@@ -110,6 +107,7 @@ public final class ElevationProfileView extends View {
                 paint.setShader(null);
             }
         }
+        canvas.restoreToCount(plot);
         paint.setStyle(Paint.Style.FILL);
 
         paint.setTextSize(10 * density);
@@ -206,10 +204,10 @@ public final class ElevationProfileView extends View {
         return left + (float) (total > 0 ? value / total : 0) * (right - left);
     }
 
-    private static float y(double value, double low, double range, float top, float bottom) {
+    private static float y(double value, io.github.jamerlybob.windroute.elevation.ProfileScale scale, float top, float bottom) {
         // Height is normalized in the same way, but subtracted from the bottom
         // because smaller Canvas y values appear higher on the screen.
-        return bottom - (float) ((value - low) / range) * (bottom - top);
+        return bottom - (float) scale.fraction(value) * (bottom - top);
     }
 
     private int resolve(int attribute) {

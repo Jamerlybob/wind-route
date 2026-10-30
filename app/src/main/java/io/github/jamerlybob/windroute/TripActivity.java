@@ -142,7 +142,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                     boundaries);
             requestedDayCount = days.size();
             updateDayCount();
-            if (!forecasts.isEmpty()) renderDays();
+            renderDays();
             refreshForecasts();
         } else {
             splitAutomatically();
@@ -336,6 +336,9 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
     }
 
     private void refreshForecasts() {
+        // Always paint the saved geometry, places and forecast before any refresh.
+        renderDays();
+        updateAge();
         final int generation = ++forecastGeneration;
         final List<DaySplitter.Day> requestedDays = new ArrayList<>(days);
         findViewById(R.id.trip_progress).setVisibility(View.VISIBLE);
@@ -351,9 +354,10 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                     loadedForecasts.add(RouteForecastLoader.load(dayRoute, departureFor(requestedDays.indexOf(day))));
                     loadedDaylight.add(DaylightClient.fetch(dayRoute.points.get(0)));
                 }
-                fetchedAt = System.currentTimeMillis();
+                final long loadedAt = System.currentTimeMillis();
                 main.post(() -> {
                     if (isDestroyed() || generation != forecastGeneration) return;
+                    fetchedAt = loadedAt;
                     forecasts.clear();
                     forecasts.addAll(loadedForecasts);
                     daylight.clear();
@@ -711,12 +715,15 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
         status.setText(R.string.places_busy);
         background.execute(() -> {
             try {
-                List<Poi> found = OverpassClient.fetch(route.points,
-                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING, PoiKind.TOWN), 500);
-                List<PoiAlongRoute> located = PoiAlongRoute.locate(route.points, found);
+                OverpassClient.Result result = OverpassClient.lookup(route.points,
+                        Arrays.asList(PoiKind.WATER, PoiKind.FOOD, PoiKind.CAMPING, PoiKind.TOWN, PoiKind.BIKE_SHOP), 500,
+                        (piece,total,partial) -> main.post(() -> {
+                            if (!isDestroyed()) status.setText(getString(R.string.places_piece_progress,piece,total));
+                        }));
+                List<PoiAlongRoute> located = PoiAlongRoute.locate(route.points,result.places);
                 main.post(() -> {
                     if (isDestroyed()) return;
-                    places = located;
+                    if (!result.failed() || !located.isEmpty()) places = located;
                     double[] snapped = TripPlanner.snapBoundaries(route, boundaries, places);
                     if (!Arrays.equals(snapped, boundaries)) {
                         boundaries = snapped;
@@ -725,8 +732,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                     }
                     findViewById(R.id.trip_places_progress).setVisibility(View.GONE);
                     findViewById(R.id.trip_find_places).setEnabled(true);
-                    status.setText(places.isEmpty() ? getString(R.string.places_none, 500)
-                            : getString(R.string.places_results, places.size()));
+                    status.setText(PlacesLookupText.result(this,result));
                     findViewById(R.id.trip_places_credit).setVisibility(View.VISIBLE);
                     renderPlaceGaps();
                     drawTripMap();
@@ -736,7 +742,7 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
                     if (isDestroyed()) return;
                     findViewById(R.id.trip_places_progress).setVisibility(View.GONE);
                     findViewById(R.id.trip_find_places).setEnabled(true);
-                    status.setText(R.string.places_error);
+                    status.setText(R.string.places_network_error);
                 });
             }
         });
@@ -765,17 +771,12 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
             list.addView(row);
             start = end;
         }
-        PlacesListController.append(this, list, places, settings, (located, name, kind) ->
-                new AlertDialog.Builder(this).setTitle(name)
-                    .setMessage(kind + (located.poi.openingHours == null ? ""
-                            : "\n" + located.poi.openingHours))
-                    .setPositiveButton(R.string.add_to_export, (dialog, which) -> {
-                        new RouteStore(this).addExportWaypoint(
-                                new io.github.jamerlybob.windroute.gpx.GpxParser.Waypoint(
-                                        located.poi.position, name, null));
-                        message(getString(R.string.added_to_export));
-                    })
-                    .setNegativeButton(android.R.string.cancel, null).show());
+        PlacesListController.append(this, list, places, settings, (located, name, kind) -> {
+            RouteStore routeStore = new RouteStore(this);
+            List<io.github.jamerlybob.windroute.gpx.GpxParser.Waypoint> selected = routeStore.exportWaypoints();
+            PlaceDetailsController.show(this, tripMap, located, name, kind, settings, selected,
+                    () -> routeStore.saveExportWaypoints(selected));
+        });
     }
 
     private void saveTrip() {
@@ -840,11 +841,9 @@ public final class TripActivity extends AppCompatActivity implements OnMapReadyC
             age.setText(R.string.forecast_just_updated);
             return;
         }
-        long minutes = Math.max(0, (System.currentTimeMillis() - fetchedAt) / 60_000);
-        String amount = minutes < 120 ? getString(R.string.age_minutes, minutes)
-                : minutes < 2880 ? getString(R.string.age_hours, minutes / 60)
-                : getString(R.string.age_days, minutes / 1440);
-        age.setText(getString(R.string.forecast_age, amount));
+        age.setText(io.github.jamerlybob.windroute.weather.ForecastAge.wording(fetchedAt,
+                System.currentTimeMillis(), getString(R.string.forecast_age),
+                getString(R.string.age_minutes), getString(R.string.age_hours), getString(R.string.age_days)));
     }
 
     private TextView text(int appearance) {

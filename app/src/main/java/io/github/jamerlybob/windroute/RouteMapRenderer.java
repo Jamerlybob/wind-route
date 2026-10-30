@@ -111,6 +111,14 @@ public final class RouteMapRenderer {
         markerPositions.add(all.get(0));
         markerPositions.add(all.get(all.size()-1));
         redrawArrows();
+        for (io.github.jamerlybob.windroute.wind.GustWarnings.Warning warning : analysis.gustWarnings) {
+            io.github.jamerlybob.windroute.route.GeoPoint point = io.github.jamerlybob.windroute.trip.StopPicker.pointAt(route.points, warning.startMeters);
+            LatLng position = new LatLng(point.lat, point.lng);
+            markerPositions.add(position);
+            map.addMarker(new MarkerOptions().position(position).anchor(.5f,.5f).icon(MapIcons.gust(activity))
+                    .title(activity.getString(R.string.gust_warnings_title)));
+        }
+        redrawArrows();
         fillSummary(analysis, settings, route.durationSeconds, windCost);
         summaryCard.setVisibility(View.VISIBLE);
         if (rideMode) {

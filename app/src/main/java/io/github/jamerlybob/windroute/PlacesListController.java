@@ -22,15 +22,17 @@ final class PlacesListController {
         UnitText units = new UnitText(activity, settings);
         for (PoiKind kind : PoiKind.values()) {
             List<PoiAlongRoute> group = new ArrayList<>();
-            for (PoiAlongRoute place : places) if (place.poi.kind == kind) group.add(place);
+            for (PoiAlongRoute place : io.github.jamerlybob.windroute.poi.PlacePresentation.collapse(places)) if (place.poi.kind == kind) group.add(place);
             if (group.isEmpty()) continue;
             String label = activity.getString(kindText(kind));
             TextView heading = text(activity);
             heading.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
-            heading.setText(activity.getString(R.string.places_heading, label, group.size()));
+            heading.setText(activity.getString(R.string.places_heading,
+                    kind == PoiKind.BIKE_SHOP ? activity.getString(R.string.places_bike_shops) : label, group.size()));
             int icon = kind == PoiKind.WATER ? R.drawable.ic_drop
                     : kind == PoiKind.FOOD ? R.drawable.ic_fork
-                    : kind == PoiKind.CAMPING ? R.drawable.ic_tent : 0;
+                    : kind == PoiKind.CAMPING ? R.drawable.ic_tent
+                    : kind == PoiKind.BIKE_SHOP ? R.drawable.ic_bike : R.drawable.ic_my_location;
             heading.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
             heading.setCompoundDrawablePadding(Math.round(8 * activity.getResources().getDisplayMetrics().density));
             list.addView(heading);
@@ -57,8 +59,9 @@ final class PlacesListController {
 
     private static void addRow(Activity activity, LinearLayout list, PoiAlongRoute place,
                                String kind, UnitText units, Listener listener) {
-        String name = place.poi.name == null || place.poi.name.isEmpty()
-                ? activity.getString(R.string.place_unnamed, kind) : place.poi.name;
+        String fallback = activity.getString(place.poi.kind == PoiKind.WATER ? R.string.place_drinking_water
+                : place.poi.kind == PoiKind.CAMPING ? R.string.place_campsite : kindText(place.poi.kind));
+        String name = io.github.jamerlybob.windroute.poi.PlacePresentation.name(place.poi, fallback);
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.VERTICAL);
         TextView title = text(activity);

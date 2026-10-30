@@ -64,6 +64,7 @@ public final class SettingsActivity extends AppCompatActivity {
         populateChoices();
         selectCurrentValues();
         listenForChanges();
+        new AlertsSettingsController(this);
     }
 
     private void keepContentClearOfSystemBars() {

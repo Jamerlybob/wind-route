@@ -16,6 +16,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import io.github.jamerlybob.windroute.route.GeoMath;
 import io.github.jamerlybob.windroute.route.GeoPoint;
@@ -32,17 +36,64 @@ import io.github.jamerlybob.windroute.route.GeoPoint;
 public final class OverpassClient {
 
     private static final String ENDPOINT = "https://overpass-api.de/api/interpreter";
-    private static final int TIMEOUT_MS = 30_000;
-    private static final int MAX_ROUTE_POINTS = 100;
+    private static final int READ_TIMEOUT_MS = 70_000;
+    private static final int MAX_ROUTE_POINTS = 51;
 
     private OverpassClient() {
     }
 
-    /** Fetches all requested kinds in one Overpass request. Never call on the main thread. */
+    public interface Progress {
+        void updated(int piece, int total, Result partial);
+    }
+    public static final class Result {
+        public final List<Poi> places;
+        public final int completed, total, busyFailures, networkFailures;
+        Result(List<Poi> places, int completed, int total, int busyFailures, int networkFailures) {
+            this.places=java.util.Collections.unmodifiableList(new ArrayList<>(places));
+            this.completed=completed; this.total=total;
+            this.busyFailures=busyFailures; this.networkFailures=networkFailures;
+        }
+        public boolean failed() { return busyFailures+networkFailures>0; }
+    }
+    public static final class BusyException extends IOException {
+        public BusyException() { super("The places service is busy. Try again in a minute."); }
+    }
+    /** A transport boundary lets the sequential/partial-result behaviour be tested without HTTP. */
+    public interface Request { List<Poi> run(String query) throws IOException; }
+    public static Result lookup(List<GeoPoint> points, Collection<PoiKind> kinds,
+                                int corridorMeters, Progress progress) throws IOException {
+        return lookup(points,kinds,corridorMeters,progress,OverpassClient::request);
+    }
+    public static Result lookup(List<GeoPoint> points, Collection<PoiKind> kinds,
+                                int corridorMeters, Progress progress, Request request) throws IOException {
+        List<List<GeoPoint>> pieces=RoutePieces.split(points);
+        List<Poi> found=new ArrayList<>(); int busy=0, network=0, completed=0;
+        for (List<GeoPoint> piece : pieces) {
+            if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException();
+            progress.updated(completed+1,pieces.size(),new Result(found,completed,pieces.size(),busy,network));
+            try {
+                merge(found,PoiAlongRoute.withinCorridor(points,request.run(buildQuery(piece,kinds,corridorMeters)),corridorMeters));
+            } catch (BusyException error) { busy++; }
+            catch (IOException error) { network++; }
+            completed++;
+            progress.updated(completed,pieces.size(),new Result(found,completed,pieces.size(),busy,network));
+        }
+        return new Result(found,completed,pieces.size(),busy,network);
+    }
+    /** Overlapping corridors return the same OSM object at adjacent seams. */
+    private static void merge(List<Poi> target,List<Poi> additions) {
+        for (Poi next : additions) {
+            boolean duplicate=false;
+            for (Poi prior : target) if (prior.kind==next.kind
+                    && java.util.Objects.equals(prior.name,next.name)
+                    && java.util.Objects.equals(prior.openingHours,next.openingHours)
+                    && GeoMath.distanceMeters(prior.position,next.position)<.1) { duplicate=true; break; }
+            if (!duplicate) target.add(next);
+        }
+    }
     public static List<Poi> fetch(List<GeoPoint> points, Collection<PoiKind> kinds,
                                   int corridorMeters) throws IOException {
-        String query = buildQuery(points, kinds, corridorMeters);
-        return PoiAlongRoute.withinCorridor(points, request(query), corridorMeters);
+        return lookup(points,kinds,corridorMeters,(piece,total,result)->{}).places;
     }
 
     /** One small-box request only after the rider taps Find camping near here. */
@@ -54,17 +105,19 @@ public final class OverpassClient {
         double latitudeRadius = 5000.0 / 111320;
         double longitudeRadius = latitudeRadius / Math.max(.01, Math.cos(Math.toRadians(point.lat)));
         return String.format(Locale.US,
-                "[out:json][timeout:25];nwr[\"tourism\"~\"^(camp_site|caravan_site)$\"](%.5f,%.5f,%.5f,%.5f);out center tags;",
+                "[out:json][timeout:60];nwr[\"tourism\"~\"^(camp_site|caravan_site)$\"](%.5f,%.5f,%.5f,%.5f);out center tags;node._;out body;",
                 Math.max(-90, point.lat-latitudeRadius), Math.max(-180, point.lng-longitudeRadius),
                 Math.min(90, point.lat+latitudeRadius), Math.min(180, point.lng+longitudeRadius));
     }
 
-    private static List<Poi> request(String query) throws IOException {
+    private static synchronized List<Poi> request(String query) throws IOException {
+        // A cancelled Activity may have been waiting behind another request.
+        if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException();
         String body = "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8.name());
 
         HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT).openConnection();
-        connection.setConnectTimeout(TIMEOUT_MS);
-        connection.setReadTimeout(TIMEOUT_MS);
+        connection.setConnectTimeout(15_000);
+        connection.setReadTimeout(READ_TIMEOUT_MS);
         connection.setRequestMethod("POST");
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
@@ -74,6 +127,7 @@ public final class OverpassClient {
                 out.write(body.getBytes(StandardCharsets.UTF_8));
             }
             int status = connection.getResponseCode();
+            if (isBusyStatus(status)) throw new BusyException();
             InputStream response = status < 400
                     ? connection.getInputStream() : connection.getErrorStream();
             if (response == null) {
@@ -93,9 +147,9 @@ public final class OverpassClient {
     }
 
     /**
-     * Builds one query whose {@code around} filter follows the whole route.
+     * Builds one compact query for one route piece.
      *
-     * <p>Long routes are replaced by at most 100 points at equal distances. That
+     * <p>Long routes are replaced by at most 51 points at equal distances. That
      * keeps the request bounded without clustering all the samples in a section
      * where the route provider happened to use many short line segments.
      */
@@ -114,17 +168,20 @@ public final class OverpassClient {
         List<GeoPoint> samples = evenlySpacedPoints(points);
         int safeCorridor = corridorMeters + (int) Math.ceil(maxDistanceToSample(points, samples));
         String around = aroundFilter(samples, safeCorridor);
-        StringBuilder query = new StringBuilder("[out:json][timeout:25];\n(\n");
-        for (PoiKind kind : PoiKind.values()) {
-            if (!kinds.contains(kind)) {
-                continue;
-            }
-            for (int tag = 0; tag < kind.tagCount(); tag++) {
-                appendSearch(query, "node", kind.tagKey(tag), kind.tagValue(tag), around);
-                appendSearch(query, "way", kind.tagKey(tag), kind.tagValue(tag), around);
-            }
+        StringBuilder query = new StringBuilder("[out:json][timeout:60];\n(\n");
+        Map<String,Set<String>> tags=new LinkedHashMap<>();
+        for (PoiKind kind : PoiKind.values()) if (kinds.contains(kind)) {
+            for (int tag=0; tag<kind.tagCount(); tag++)
+                tags.computeIfAbsent(kind.tagKey(tag), key->new LinkedHashSet<>()).add(kind.tagValue(tag));
         }
-        query.append(");\nout center;");
+        for (Map.Entry<String,Set<String>> tag : tags.entrySet()) {
+            query.append("  nwr[\"").append(tag.getKey()).append("\"~\"^(")
+                    .append(String.join("|",tag.getValue())).append(")$\"]").append(around).append(";\n");
+        }
+        // `out tags` omits node coordinates; `center` restores only way/relation
+        // centres. A node-only body output retains their positions without
+        // repeating the expensive search or downloading full way geometry.
+        query.append(");\nout center tags;node._;out body;");
         return query.toString();
     }
 
@@ -140,7 +197,7 @@ public final class OverpassClient {
             // Overpass may return HTTP 200 with a runtime-error remark and an
             // empty elements array. That is a failed query, not a dry town.
             if (!root.optString("remark").isEmpty()) {
-                throw new IOException("The places service could not complete the lookup. Try again later.");
+                throw new BusyException();
             }
             JSONArray elements = root.getJSONArray("elements");
             List<Poi> places = new ArrayList<>();
@@ -191,12 +248,7 @@ public final class OverpassClient {
         return tags.optString(name, null);
     }
 
-    private static void appendSearch(StringBuilder query, String elementType,
-                                     String key, String value, String around) {
-        query.append("  ").append(elementType)
-                .append("[\"").append(key).append("\"=\"").append(value).append("\"]")
-                .append(around).append(";\n");
-    }
+    public static boolean isBusyStatus(int status) { return status==429 || status==504; }
 
     private static String aroundFilter(List<GeoPoint> points, int corridorMeters) {
         StringBuilder filter = new StringBuilder("(around:").append(corridorMeters);

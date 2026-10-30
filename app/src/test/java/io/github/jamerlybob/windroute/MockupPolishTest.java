@@ -61,8 +61,9 @@ public class MockupPolishTest {
     }
 
     @Test public void quietParticlesRespectTheChosenCalmThreshold() {
-        assertTrue(WindPresentation.particleOpacity(4,5)<.04);
-        assertTrue(WindPresentation.particleOpacity(10,12)<.04);
+        // Calm air stays faint; a 10 km/h breeze must be clearly visible.
+        assertTrue(WindPresentation.particleOpacity(4,5)<.25);
+        assertTrue(WindPresentation.particleOpacity(10,5)>.5);
         assertEquals(1,WindPresentation.particleOpacity(30,5),0);
         assertTrue(WindPresentation.particleOpacity(15,5)<WindPresentation.particleOpacity(25,5));
     }

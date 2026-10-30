@@ -66,22 +66,22 @@
     <string name="save_trip">Save trip offline</string>
     <string name="trip_saved">Trip saved.</string>
     <string name="map_offline_notice">Trip details are saved for offline use. The Google base map cannot be saved.</string>
-    <string name="forecast_age">Forecast fetched %1$s ago.</string>
+    <string name="forecast_age">Forecast from %1$s ago</string>
     <string name="forecast_fresh">Forecast is being refreshed from Open-Meteo.</string>
     <string name="trip_name">Trip starting %1$s</string>
     <string name="trip_error">This trip could not be opened.</string>
-    <string name="age_minutes">%1$d minutes</string>
-    <string name="age_hours">%1$d hours</string>
+    <string name="age_minutes">%1$d min</string>
+    <string name="age_hours">%1$d h</string>
     <string name="age_days">%1$d days</string>
     <string name="temperature_single">%1$d°</string>
     <string name="unavailable_short">—</string>
     <string name="export_climb">Climb %1$d</string>
-    <string name="poi_water">water</string>
-    <string name="poi_food">food</string>
-    <string name="poi_camping">camping</string>
-    <string name="poi_bike_shop">bike shop</string>
-    <string name="poi_toilets">toilets</string>
-    <string name="poi_shelter">shelter</string>
+    <string name="poi_water">Water</string>
+    <string name="poi_food">Food</string>
+    <string name="poi_camping">Camping</string>
+    <string name="poi_bike_shop">Bike shop</string>
+    <string name="poi_toilets">Toilets</string>
+    <string name="poi_shelter">Shelter</string>
     <string name="place_marker_details">%1$s · %2$s</string>
 
     <string name="error_need_both">Enter where you are starting and where you are going.</string>
@@ -161,11 +161,11 @@
     <string name="details_with_extras">%1$s · %2$s</string>
     <plurals name="wind_adds">
         <item quantity="one">The wind adds about %1$d minute</item>
-        <item quantity="other">The wind adds about %1$d minutes</item>
+        <item quantity="other">The wind adds about %1$d min</item>
     </plurals>
     <plurals name="wind_saves">
         <item quantity="one">The wind saves about %1$d minute</item>
-        <item quantity="other">The wind saves about %1$d minutes</item>
+        <item quantity="other">The wind saves about %1$d min</item>
     </plurals>
     <plurals name="climbs_into_wind">
         <item quantity="one">%1$d climb into the wind</item>
@@ -287,7 +287,7 @@
     <string name="later_rain">Leave a day later: rain drops from %1$.1f to %2$.1f mm</string>
     <string name="wind_easing">easing to</string>
     <string name="wind_later">changing to</string>
-    <string name="poi_town">town</string>
+    <string name="poi_town">Town</string>
     <string name="compare_trip_day">Try shifting the trip to compare the weather.</string>
     <string name="no_saved_trips_help">Find or import a route, choose Plan trip from the menu, then tap Save trip.</string>
     <string name="map_layers">Map layers</string>
@@ -331,4 +331,42 @@
     <string name="stop_distance_km">%1$.0f km</string>
     <string name="stop_distance_miles">%1$.0f mi</string>
     <string name="last_track">Last: %1$s</string>
+    <string name="wind_grid_failure">Couldn\'t load the wind map. Tap Layers to retry.</string>
+    <string name="wind_grid_loading">Loading wind map</string>
+    <string name="place_drinking_water">Drinking water</string>
+    <string name="place_campsite">Campsite</string>
+    <string name="remove_export">Remove</string>
+    <plurals name="gust_summary"><item quantity="one">Gusts to %1$s on %2$d stretch</item><item quantity="other">Gusts to %1$s on %2$d stretches</item></plurals>
+    <string name="alerts_title">Alerts</string>
+    <string name="alerts_enable">Tell me about tomorrow’s ride</string>
+    <string name="alerts_schedule">Checks around 7 PM with internet. Android may delay checks. Good means little headwind, gusts below 45 km/h, and a dry forecast (rain chance below 20%).</string>
+    <string name="alerts_bad">Also tell me when it is a bad day</string>
+    <string name="alert_permission_explanation">Allow notifications for tomorrow’s usual ride forecast.</string>
+    <string name="alert_permission_continue">Continue</string>
+    <string name="alert_permission_denied">Alerts are off. Allow notifications in system settings to enable them.</string>
+    <string name="alert_choose_route">Choose my usual ride</string>
+    <string name="alert_route_choice">Usual ride: %1$s</string>
+    <string name="alert_time_choice">I usually ride at %1$s</string>
+    <string name="alert_current_route">Current / last route: %1$s to %2$s</string>
+    <string name="alert_no_routes">Find a route or save a trip first.</string>
+    <string name="alert_good_sentence">Tomorrow %1$s looks good: %2$s</string>
+    <string name="alert_bad_sentence">Tomorrow %1$s looks difficult: %2$s</string>
+    <string name="alert_tailwind">mostly tailwind, dry</string>
+    <string name="alert_light_wind">little headwind, dry</string>
+    <string name="alert_headwind">strong headwind</string>
+    <string name="alert_rain">rain likely</string>
+    <string name="alert_temperature_suffix">, %1$s</string>
+    <string name="alert_celsius">%1$d°C</string>
+    <string name="alert_fahrenheit">%1$d°F</string>
+    <string name="place_hours_details">%1$s\n%2$s</string>
+    <string name="places_bike_shops">Bike shops</string>
+    <string name="wind_zoom_in">Zoom in</string>
+    <string name="wind_area_too_large">Zoom in to load wind for this area</string>
+    <string name="places_piece_progress">Finding places… %1$d of %2$d</string>
+    <string name="places_service_busy">The places service is busy. Try again in a minute.</string>
+    <string name="places_network_error">Couldn\'t reach the places service. Check your connection and try again.</string>
+    <string name="places_busy_and_network">Some requests could not connect and the places service is busy. Try again in a minute.</string>
+    <string name="places_partial">Kept %1$d places. %2$d of %3$d pieces unavailable. %4$s</string>
+    <string name="show_all_climbs">Show all %1$d climbs</string>
+    <string name="show_fewer_climbs">Show three biggest climbs</string>
 </resources>

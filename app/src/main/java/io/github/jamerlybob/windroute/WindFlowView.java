@@ -12,7 +12,7 @@ import io.github.jamerlybob.windroute.wind.*;
 
 /** Transparent, touch-through wind trails above the map and below the controls. */
 public final class WindFlowView extends View {
-    private final WindParticle[] particles = new WindParticle[300];
+    private final WindParticle[] particles = new WindParticle[450];
     private final Random random = new Random();
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint eraser = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -70,7 +70,7 @@ public final class WindFlowView extends View {
         lastFrame = now;
         trailCanvas.drawColor(0x30000000, PorterDuff.Mode.DST_OUT);
         if (screenWind == null) buildScreenWind();
-        paint.setStrokeWidth(getResources().getDisplayMetrics().density);
+        paint.setStrokeWidth(1.6f * getResources().getDisplayMetrics().density);
         for (WindParticle particle : particles) {
             if (particle.needsRespawn(getWidth(), getHeight())) {
                 particle.x = random.nextDouble() * getWidth(); particle.y = random.nextDouble() * getHeight();

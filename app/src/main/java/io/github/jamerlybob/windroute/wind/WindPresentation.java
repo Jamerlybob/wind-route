@@ -32,8 +32,12 @@ public final class WindPresentation {
     }
 
     public static double particleOpacity(double speedKmh, double calmBelowKmh) {
+        // James could not see the layer at all on an ordinary day: at 10 km/h
+        // the old ramp gave thin lines at 20 percent. Calm air stays faint, but
+        // any wind a rider would feel is clearly visible, and strong wind is
+        // full strength.
         double calm = Math.max(0, Math.min(29, calmBelowKmh));
-        if (speedKmh <= calm) return calm == 0 ? 0 : .03 * Math.max(0, speedKmh) / calm;
-        return Math.min(1, .03 + .97 * (speedKmh - calm) / (30 - calm));
+        if (speedKmh <= calm) return calm == 0 ? .25 : .25 * Math.max(0, speedKmh) / calm;
+        return Math.min(1, .45 + .55 * (speedKmh - calm) / (30 - calm));
     }
 }
